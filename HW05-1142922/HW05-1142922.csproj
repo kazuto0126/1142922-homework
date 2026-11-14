@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net6.0-windows</TargetFramework>
+    <!-- 開發時有 .NET 6 就用 .NET 6，沒有就用更新版 Desktop Runtime；交付的單一 exe 自帶執行環境。 -->
+    <RollForward>Major</RollForward>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>10.0</LangVersion>
+    <RootNamespace>CandyLegend</RootNamespace>
+    <AssemblyName>HW05-1142922</AssemblyName>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>Assets\Art\fairytail.ico</ApplicationIcon>
+    <Version>1.0.0</Version>
+    <Company>1142922</Company>
+    <Product>1142922 HW05 FAIRY TAIL</Product>
+    <Description>Windows Forms .NET 6 三消遊戲</Description>
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <!-- 音訊執行緒不能被分層編譯的重新編譯打斷，一開始就用最佳化程式碼。 -->
+    <TieredCompilation>false</TieredCompilation>
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- 之後放進 Assets\Music 的音樂會整個包進 exe，執行時不需要任何外部檔案。 -->
+    <EmbeddedResource Include="Assets\Music\*.*" LogicalName="Music.%(Filename)%(Extension)" />
+    <EmbeddedResource Include="Assets\Boss\*.*" LogicalName="Boss.%(Filename)%(Extension)" />
+    <EmbeddedResource Include="Assets\Art\*.*" LogicalName="Art.%(Filename)%(Extension)" />
+  </ItemGroup>
+</Project>
