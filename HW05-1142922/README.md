@@ -4,7 +4,13 @@ C# Windows Forms（.NET 6）三消遊戲。畫面全部用 GDI+ 向量繪圖畫�
 
 ![遊戲畫面](docs/play.png)
 
-## 下載
+## 線上玩（免下載）
+
+**https://kazuto0126.github.io/1142922-homework/hw05/**
+
+電腦、手機瀏覽器都能玩（手機請橫放）。網頁版的做法見 [HW05-1142922-web](../HW05-1142922-web)。
+
+## 下載 Windows 版
 
 到 [Releases](../../releases) 下載 `HW05-1142922.exe`，直接執行即可（Windows 10/11 64 位元）。
 

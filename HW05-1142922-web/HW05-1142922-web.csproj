@@ -1,0 +1,42 @@
+<Project Sdk="Microsoft.NET.Sdk.WebAssembly">
+  <!--
+    HW05 的網頁版：遊戲規則、關卡、畫圖程式直接共用 ..\HW05-1142922 的原始碼，
+    只把 Windows 專用的部分（視窗、GDI+、winmm 音效）換成瀏覽器版（Shim\、Web\）。
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <RootNamespace>CandyLegend</RootNamespace>
+    <AssemblyName>HW05Web</AssemblyName>
+    <DefineConstants>$(DefineConstants);WEB;RELEASE_EXE</DefineConstants>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <NoWarn>$(NoWarn);CS0649;CS0169;CS0414;CA1416</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Using Include="System.Drawing" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="..\HW05-1142922\Core\Board.cs" Link="Shared\Core\Board.cs" />
+    <Compile Include="..\HW05-1142922\Core\Levels.cs" Link="Shared\Core\Levels.cs" />
+    <Compile Include="..\HW05-1142922\Core\Session.cs" Link="Shared\Core\Session.cs" />
+    <Compile Include="..\HW05-1142922\Audio\Synth.cs" Link="Shared\Audio\Synth.cs" />
+    <Compile Include="..\HW05-1142922\UI\Art.cs" Link="Shared\UI\Art.cs" />
+    <Compile Include="..\HW05-1142922\UI\Art.Hero.cs" Link="Shared\UI\Art.Hero.cs" />
+    <Compile Include="..\HW05-1142922\UI\GameForm.Play.cs" Link="Shared\UI\GameForm.Play.cs" />
+    <Compile Include="..\HW05-1142922\UI\GameForm.Hud.cs" Link="Shared\UI\GameForm.Hud.cs" />
+    <Compile Include="..\HW05-1142922\UI\GameForm.Screens.cs" Link="Shared\UI\GameForm.Screens.cs" />
+    <Compile Include="..\HW05-1142922\UI\GameForm.Extras.cs" Link="Shared\UI\GameForm.Extras.cs" />
+    <Compile Include="..\HW05-1142922\UI\GameForm.Video.cs" Link="Shared\UI\GameForm.Video.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- 魔王圖、光耀截圖、公會徽章：放在網站的 img\ 底下，開始前由瀏覽器先解碼好。 -->
+    <Content Include="..\HW05-1142922\Assets\Boss\*.jpg" Link="wwwroot\img\Boss.%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\HW05-1142922\Assets\Art\*.jpg;..\HW05-1142922\Assets\Art\*.png" Link="wwwroot\img\Art.%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

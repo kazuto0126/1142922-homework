@@ -1091,12 +1091,17 @@ internal static partial class Art
 
     private static Bitmap LoadPicture(string resource)
     {
+#if WEB
+        // 網頁版：圖片由瀏覽器在開始前解碼好。
+        return CandyLegend.Web.WebImages.Get(resource);
+#else
         using Stream stream = System.Reflection.Assembly.GetExecutingAssembly().GetManifestResourceStream(resource)!;
         using var decoded = new Bitmap(stream);
         var bitmap = new Bitmap(decoded.Width, decoded.Height, PixelFormat.Format32bppPArgb);
         using Graphics g = Graphics.FromImage(bitmap);
         g.DrawImage(decoded, 0, 0, decoded.Width, decoded.Height);
         return bitmap;
+#endif
     }
 
     public static void Boss(Graphics g, float cx, float cy, float scale, float time, float flash, bool enraged)

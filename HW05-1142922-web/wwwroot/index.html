@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+  <title>1142922 HW05 FAIRY TAIL — 六神器與百年任務</title>
+  <link rel="icon" href="img/Art.mark.png">
+  <style>
+    html, body { margin: 0; height: 100%; background: #0b0918; overflow: hidden; }
+    body { display: flex; align-items: center; justify-content: center; font-family: "Microsoft JhengHei", "PingFang TC", "Noto Sans TC", sans-serif; color: #f2ead6; }
+    canvas { display: block; touch-action: none; user-select: none; -webkit-user-select: none; }
+    #start { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px;
+      background: radial-gradient(ellipse at center, #2a1840 0%, #0b0918 70%); text-align: center; padding: 16px; }
+    #start h1 { margin: 0; font-size: clamp(22px, 4.2vw, 44px); color: #ffe7a0; letter-spacing: 2px; text-shadow: 0 2px 12px #000; }
+    #start p { margin: 0; color: #cfc6e8; font-size: clamp(13px, 2vw, 17px); line-height: 1.7; }
+    #play { font: inherit; font-size: clamp(18px, 3vw, 26px); font-weight: bold; padding: 12px 44px; border-radius: 14px; border: 2px solid #7a4a10;
+      background: linear-gradient(#ffeaa0, #c48a2c); color: #1a142c; cursor: pointer; opacity: .45; pointer-events: none; }
+    #start.ready #play { opacity: 1; pointer-events: auto; }
+    #status { min-height: 1.5em; color: #9f97bd; font-size: 14px; }
+    .portrait { display: none; color: #ffd27a !important; }
+    @media (orientation: portrait) { .portrait { display: block; } }
+    #tools { position: fixed; top: 8px; right: 8px; display: none; gap: 6px; }
+    #tools.show { display: flex; }
+    #tools button { font: inherit; font-size: 13px; padding: 4px 10px; border-radius: 8px; border: 1px solid #b08a40; background: rgba(16, 18, 42, .75); color: #f2ead6; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <canvas id="game"></canvas>
+  <div id="start">
+    <h1>FAIRY TAIL — 六神器與百年任務</h1>
+    <p>1142922 HW05 三消遊戲 網頁版<br>滑鼠拖曳（手機用手指滑）交換糖晶，連成三個以上就能消除</p>
+    <button id="play">開始遊戲</button>
+    <div id="status">載入中…</div>
+    <p class="portrait">📱 手機請橫放，畫面會比較大</p>
+    <p style="font-size:12px;color:#7f789c">有背景音樂，請開聲音。第一次載入約 10 MB。</p>
+  </div>
+  <div id="tools"><button id="mute">音樂</button><button id="esc">暫停／返回</button></div>
+  <script type="module" src="main.js"></script>
+</body>
+</html>
