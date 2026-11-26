@@ -119,7 +119,7 @@ export function createStage(canvas, { quality = 'high' } = {}) {
   const frameCbs = new Set();
   const tweens = new Set();
   const clock = new THREE.Clock();
-  let cinematic = 0;
+  let camTween = null; // 同一時間只有一段鏡頭動畫
 
   function onFrame(cb) {
     frameCbs.add(cb);
@@ -127,19 +127,22 @@ export function createStage(canvas, { quality = 'high' } = {}) {
   }
 
   /** 在 ms 毫秒內每幀呼叫 fn(0..1)。回傳結束時 resolve 的 Promise。 */
+  // 用真實時間計算進度（不是幀數），畫面卡頓或在背景時也會準時結束，跟演出時間軸同步
   function tween(ms, fn, { camera: isCamera = false } = {}) {
-    return new Promise(resolve => {
-      const t = { elapsed: 0, ms: Math.max(1, ms), fn, resolve, camera: isCamera };
+    let t;
+    const p = new Promise(resolve => {
+      t = { start: performance.now(), ms: Math.max(1, ms), fn, resolve, camera: isCamera };
       tweens.add(t);
       fn(0);
     });
+    p.handle = t;
+    return p;
   }
 
   renderer.setAnimationLoop(() => {
     const dt = Math.min(clock.getDelta(), 0.1);
     for (const t of [...tweens]) {
-      t.elapsed += dt * 1000;
-      const k = Math.min(1, t.elapsed / t.ms);
+      const k = Math.min(1, (performance.now() - t.start) / t.ms);
       try { t.fn(k); } catch (e) { console.error(e); }
       if (k >= 1) { tweens.delete(t); t.resolve(); }
     }
@@ -147,7 +150,8 @@ export function createStage(canvas, { quality = 'high' } = {}) {
       try { cb(dt); } catch (e) { console.error(e); }
     }
     animateCells(dt);
-    if (!cinematic) controls.update();
+    controls.enabled = !camTween; // 鏡頭動畫結束就自動還給玩家操作
+    if (!camTween) controls.update();
     let shook = false;
     if (shakeAmp > 0) {
       shakeT += dt;
@@ -211,17 +215,25 @@ export function createStage(canvas, { quality = 'high' } = {}) {
     if (!saved) saved = { pos: camera.position.clone(), target: controls.target.clone() };
   }
 
+  /** 開始一段鏡頭動畫；如果已經有一段在跑，先把舊的停掉（停在當下的位置）。 */
+  function cameraTween(ms, fn) {
+    if (camTween) { tweens.delete(camTween); camTween.resolve(); camTween = null; }
+    controls.enabled = false;
+    const p = tween(ms, fn, { camera: true });
+    const handle = p.handle;
+    camTween = handle;
+    return p.finally(() => { if (camTween === handle) camTween = null; });
+  }
+
   function moveCamera(toPos, toTarget, ms) {
     const fromPos = camera.position.clone();
     const fromTarget = controls.target.clone();
-    cinematic++;
-    controls.enabled = false;
-    return tween(ms, k => {
+    return cameraTween(ms, k => {
       const e = ease(k);
       camera.position.lerpVectors(fromPos, toPos, e);
       controls.target.lerpVectors(fromTarget, toTarget, e);
       camera.lookAt(controls.target);
-    }, { camera: true }).finally(() => { cinematic = Math.max(0, cinematic - 1); });
+    });
   }
 
   function flyTo(i, ms = 700) {
@@ -235,26 +247,23 @@ export function createStage(canvas, { quality = 'high' } = {}) {
     saveView();
     const target = line.reduce((v, i) => v.add(cells[i].center), new THREE.Vector3()).multiplyScalar(1 / line.length);
     const a0 = currentAzimuth();
-    cinematic++;
-    controls.enabled = false;
     const startPos = camera.position.clone();
     const startTarget = controls.target.clone();
-    return tween(ms, k => {
+    return cameraTween(ms, k => {
       const e = ease(k);
       const orbit = viewToPosition({ polar: 58 * DEG, azimuth: a0 + e * Math.PI * 0.9, distance: 9, target });
       const blend = Math.min(1, k * 4); // 前 25% 從原本的位置滑進軌道
       camera.position.lerpVectors(startPos, orbit, blend);
       controls.target.lerpVectors(startTarget, target, blend);
       camera.lookAt(controls.target);
-    }, { camera: true }).finally(() => { cinematic = Math.max(0, cinematic - 1); });
+    });
   }
 
   async function restoreView(ms = 600) {
-    if (!saved) { controls.enabled = true; return; }
+    if (!saved) return;
     const { pos, target } = saved;
     saved = null;
     await moveCamera(pos, target, ms);
-    if (!cinematic) controls.enabled = true;
   }
 
   /** 跳過演出時：鏡頭直接回到原位。 */
@@ -264,7 +273,7 @@ export function createStage(canvas, { quality = 'high' } = {}) {
       if (!t.camera) { try { t.fn(1); } catch (e) { console.error(e); } } // 一般動畫直接跳到結尾
       t.resolve();
     }
-    cinematic = 0;
+    camTween = null;
     if (saved) {
       camera.position.copy(saved.pos);
       controls.target.copy(saved.target);
@@ -279,7 +288,7 @@ export function createStage(canvas, { quality = 'high' } = {}) {
     setView(DEFAULT_VIEW);
   }
 
-  canvas.addEventListener('dblclick', () => { if (!cinematic) resetView(); });
+  canvas.addEventListener('dblclick', () => { if (!camTween) resetView(); });
 
   // ── 點擊判定 ──
   const raycaster = new THREE.Raycaster();
@@ -324,33 +333,49 @@ export function createStage(canvas, { quality = 'high' } = {}) {
     return piece;
   }
 
+  /**
+   * 主角加入陣營：立繪只跳出來約 1 秒就淡出（不擋視線），
+   * 之後格子上留一枚平貼在地板上的圓形頭像徽章。
+   */
   function placeStandee(i, faction, image) {
     const c = cells[i];
     if (c.standee) return c.standee;
+    const color = FACTIONS[faction].primary;
     const group = new THREE.Group();
-    group.position.set(c.center.x - 0.2, 0, c.center.z - 0.25);
+    group.position.set(c.center.x - 0.25, 0, c.center.z - 0.2);
     group.userData.baseY = TILE_TOP + 0.02;
 
-    const tex = textureFrom(image);
-    const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false, opacity: 0 }));
+    // 平貼的圓形頭像
+    const badge = new THREE.Mesh(
+      new THREE.CircleGeometry(0.62, 48),
+      new THREE.MeshBasicMaterial({ map: textureFrom(badgeCanvas(image, color)), transparent: true, opacity: 0, depthWrite: false }),
+    );
+    badge.rotation.x = -Math.PI / 2;
+    badge.position.y = 0.012;
+    group.add(badge);
+
+    // 暫時跳出來的立繪
+    const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: textureFrom(image), transparent: true, depthWrite: false, opacity: 0 }));
     const aspect = (image.width || 1) / (image.height || 1);
-    const h = 1.75;
+    const h = 1.6;
     sprite.scale.set(h * aspect, h, 1);
     sprite.center.set(0.5, 0);
     group.add(sprite);
 
-    // 陣營色的底座光環
-    const ring = new THREE.Mesh(
-      new THREE.RingGeometry(0.5, 0.62, 40),
-      new THREE.MeshBasicMaterial({ color: FACTIONS[faction].primary, transparent: true, opacity: 0.85, side: THREE.DoubleSide, toneMapped: false }),
-    );
-    ring.rotation.x = -Math.PI / 2;
-    ring.position.y = 0.01;
-    group.add(ring);
-
     pieces.add(group);
     c.standee = group;
-    tween(300, k => { sprite.material.opacity = k; });
+    tween(1500, k => {
+      badge.material.opacity = Math.min(1, k * 4);
+      // 0–15% 升起淡入、15–70% 停留、70–100% 下沉淡出
+      const show = k < 0.15 ? k / 0.15 : k < 0.7 ? 1 : 1 - (k - 0.7) / 0.3;
+      sprite.material.opacity = show;
+      sprite.position.y = (1 - Math.min(1, k / 0.15)) * -0.3 + (k > 0.7 ? -(k - 0.7) * 0.8 : 0);
+      if (k >= 1 && sprite.parent) {
+        group.remove(sprite);
+        sprite.material.map.dispose();
+        sprite.material.dispose();
+      }
+    });
     return group;
   }
 
@@ -416,7 +441,7 @@ export function createStage(canvas, { quality = 'high' } = {}) {
     onFrame, tween, flyTo, orbitLine, restoreView, snapBack, resetView, setQuality, shake,
     get quality() { return quality; },
     get fxGeneration() { return fxGeneration; },
-    get isCinematic() { return cinematic > 0; },
+    get isCinematic() { return !!camTween; },
   };
 }
 
@@ -428,6 +453,30 @@ function textureFrom(image) {
   tex.anisotropy = 4;
   tex.needsUpdate = true;
   return tex;
+}
+
+/** 圓形頭像：取立繪上半部（臉）裁成圓形，外圈是陣營色。 */
+function badgeCanvas(image, color) {
+  const size = 256;
+  const c = document.createElement('canvas');
+  c.width = c.height = size;
+  const g = c.getContext('2d');
+  const iw = image.width || size, ih = image.height || size;
+  const side = Math.min(iw, ih * 0.8); // 取上方的正方形，臉通常在上半部
+  g.save();
+  g.beginPath();
+  g.arc(size / 2, size / 2, size / 2 - 10, 0, Math.PI * 2);
+  g.clip();
+  g.fillStyle = '#0b0d1c';
+  g.fillRect(0, 0, size, size);
+  g.drawImage(image, (iw - side) / 2, 0, side, side, 0, 0, size, size);
+  g.restore();
+  g.lineWidth = 12;
+  g.strokeStyle = color;
+  g.beginPath();
+  g.arc(size / 2, size / 2, size / 2 - 8, 0, Math.PI * 2);
+  g.stroke();
+  return c;
 }
 
 function backOut(k) {
