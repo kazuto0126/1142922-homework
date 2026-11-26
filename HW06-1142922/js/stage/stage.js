@@ -357,7 +357,9 @@ export function createStage(canvas, { quality = 'high' } = {}) {
     for (const m of cells[i].frame.children) m.material.color.set(color);
   }
 
+  let fxGeneration = 0;
   function clearBoard() {
+    fxGeneration++; // 還沒觸發的延遲特效看到世代變了就不會出現
     for (const c of cells) {
       if (c.piece) { pieces.remove(c.piece); dispose(c.piece); c.piece = null; }
       if (c.standee) { pieces.remove(c.standee); dispose(c.standee); c.standee = null; }
@@ -375,6 +377,7 @@ export function createStage(canvas, { quality = 'high' } = {}) {
     pickCell, setHover, setWorldImage, placePiece, placeStandee, clearBoard,
     onFrame, tween, flyTo, orbitLine, restoreView, snapBack, resetView, setQuality, shake,
     get quality() { return quality; },
+    get fxGeneration() { return fxGeneration; },
     get isCinematic() { return cinematic > 0; },
   };
 }

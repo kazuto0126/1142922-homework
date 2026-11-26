@@ -40,10 +40,19 @@
     document.addEventListener('pointerdown', () => audio.unlock());
     const performer = createPerformer({ stage, audio, heroImages, getSettings: () => ({ ...DEFAULT_SETTINGS }) });
 
+    const { SKILLS, makeFx } = await import('./js/fx/skills/index.js');
+    const { palette } = await import('./js/fx/common.js');
+    const skillOnly = q.has('skillonly');
+
     async function play() {
       stage.clearBoard();
       stage.snapBack();
-      await performer.performMove({ index: cell, faction, tier, classification: {} });
+      if (skillOnly) {
+        // 只播技能本身（不含入場、cut-in），方便截圖
+        SKILLS[cell](makeFx({ stage, cell, faction, tier, audio, world: WORLDS[cell], pal: palette(faction) }));
+      } else {
+        await performer.performMove({ index: cell, faction, tier, classification: {} });
+      }
       if (all) cell = (cell + 1) % 9;
     }
     play();

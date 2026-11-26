@@ -1,6 +1,11 @@
 // 九格技能。每個技能是 (fx) => void，約 0.9 秒內排好自己的子效果。
-// fx = { stage, cell, pos, faction, pal, tier, audio, world, color, mul, big }
+// fx = { stage, cell, pos, faction, pal, tier, audio, world, color, mul, scale, big }
 import { emit, ring, flash, orb, skillColor } from '../common.js';
+import cell0 from './cell0.js';
+import cell1 from './cell1.js';
+import cell2 from './cell2.js';
+import cell3 from './cell3.js';
+import cell4 from './cell4.js';
 
 /** 通用技能（還沒做專屬特效的格子先用這個）。 */
 export function genericSkill(fx) {
@@ -14,7 +19,7 @@ export function genericSkill(fx) {
   audio.sfx('impact');
 }
 
-export const SKILLS = Array.from({ length: 9 }, () => genericSkill);
+export const SKILLS = [cell0, cell1, cell2, cell3, cell4, genericSkill, genericSkill, genericSkill, genericSkill];
 
 /** 建立技能需要的 context。 */
 export function makeFx({ stage, cell, faction, tier, audio, world, pal }) {

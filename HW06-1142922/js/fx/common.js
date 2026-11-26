@@ -258,3 +258,100 @@ export function orb(stage, pos, { color = '#ffffff', grow = [0.1, 1.2], life = 0
 }
 
 export const wait = ms => new Promise(r => setTimeout(r, ms));
+
+/** ms 毫秒後執行 fn；如果棋盤在這之間被清掉（重開一局），就不執行。 */
+export function later(stage, ms, fn) {
+  const gen = stage.fxGeneration;
+  setTimeout(() => { if (stage.fxGeneration === gen) fn(); }, ms);
+}
+
+/** 粒子從四周往 center 聚集（聚氣、吸氣）。 */
+export function converge(stage, center, { radius = 1.5, count = 60, color = '#ffffff', color2 = null, life = 0.35, size = 0.25 } = {}) {
+  const sys = particleSystem(stage);
+  const n = Math.round(count * (stage.quality === 'low' ? 0.45 : 1));
+  const c1 = new THREE.Color(color), c2 = color2 ? new THREE.Color(color2) : c1, c = new THREE.Color();
+  const d = new THREE.Vector3(), p = new THREE.Vector3(), v = new THREE.Vector3();
+  for (let i = 0; i < n; i++) {
+    d.set(rand(-1, 1), rand(-1, 1), rand(-1, 1)).normalize();
+    const r = radius * rand(0.6, 1);
+    const l = life * rand(0.8, 1.2);
+    p.copy(center).addScaledVector(d, r);
+    v.copy(d).multiplyScalar(-r / l);
+    c.copy(c1).lerp(c2, Math.random());
+    sys.spawn(p, v, c, size * rand(0.6, 1.3), l, 1, 0, 0);
+  }
+}
+
+/** 鋸齒狀的閃電（由細圓柱組成），每 60 ms 重新抖動一次。 */
+export function bolt(stage, from, to, { color = '#ffffff', width = 0.06, life = 0.35, delay = 0, segments = 10, jag = 0.35 } = {}) {
+  const g = new THREE.Group();
+  const mat = glowMat(color, 1);
+  const core = glowMat('#ffffff', 1);
+  const segs = [];
+  for (let i = 0; i < segments; i++) {
+    const m = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 1, 6, 1, true), mat);
+    const c = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.4, 1, 5, 1, true), core);
+    m.add(c);
+    g.add(m);
+    segs.push(m);
+  }
+  const pts = [];
+  const up = new THREE.Vector3(0, 1, 0);
+  const dirv = new THREE.Vector3();
+  function rejitter() {
+    pts.length = 0;
+    for (let i = 0; i <= segments; i++) {
+      const p = from.clone().lerp(to, i / segments);
+      if (i > 0 && i < segments) p.add(new THREE.Vector3(rand(-jag, jag), rand(-jag, jag), rand(-jag, jag)));
+      pts.push(p);
+    }
+    segs.forEach((m, i) => {
+      const a = pts[i], b = pts[i + 1];
+      m.position.copy(a).add(b).multiplyScalar(0.5);
+      dirv.copy(b).sub(a);
+      const len = dirv.length();
+      m.quaternion.setFromUnitVectors(up, dirv.normalize());
+      m.scale.set(width, len, width);
+    });
+  }
+  rejitter();
+  let acc = 0;
+  return spawn(stage, g, {
+    life, delay,
+    update(k, _o, dt) {
+      acc += dt;
+      if (acc > 0.06) { acc = 0; rejitter(); }
+      mat.opacity = core.opacity = k < 0.7 ? (Math.random() > 0.15 ? 1 : 0.3) : 1 - (k - 0.7) / 0.3;
+    },
+  });
+}
+
+/** 在 center 周圍亂竄的短電弧。 */
+export function arcs(stage, center, { count = 5, radius = 1.0, color = '#9ff', life = 0.4, delay = 0, width = 0.03 } = {}) {
+  for (let i = 0; i < count; i++) {
+    const a = new THREE.Vector3(rand(-1, 1), rand(-0.5, 1), rand(-1, 1)).normalize().multiplyScalar(radius * rand(0.4, 1)).add(center);
+    const b = new THREE.Vector3(rand(-1, 1), rand(-0.5, 1), rand(-1, 1)).normalize().multiplyScalar(radius * rand(0.4, 1)).add(center);
+    bolt(stage, a, b, { color, width, life: life * rand(0.6, 1), delay: delay + rand(0, life * 0.5), segments: 6, jag: radius * 0.25 });
+  }
+}
+
+/** 陣營殘留：利姆路是落下的水滴，五條悟是藍紫色的扭曲波紋。 */
+export function residue(fx, { delay = 0 } = {}) {
+  const { stage, pos, pal, faction } = fx;
+  later(stage, delay * 1000, () => {
+    if (faction === 'rimuru') {
+      emit(stage, { pos: pos.clone().setY(pos.y + 1.8), count: 30 * fx.mul, color: pal.primary, color2: pal.accent, shape: 'sphere', speed: 1.5, gravity: -7, drag: 0.3, life: 0.9, size: 0.22, radius: 0.9 });
+    } else {
+      ring(stage, pos, { color: pal.secondary, radius: 2.2 * fx.scale, life: 0.55, width: 0.06, y: 0.35 });
+      ring(stage, pos, { color: '#ffffff', radius: 1.6 * fx.scale, life: 0.45, width: 0.04, y: 0.55, delay: 0.08 });
+    }
+  });
+}
+
+/** 低面數造型用的材質。 */
+export function solidMat(color, { emissive = '#000000', emissiveIntensity = 0, flat = true, opacity = 1 } = {}) {
+  return new THREE.MeshStandardMaterial({ color, emissive, emissiveIntensity, roughness: 0.6, metalness: 0.1, flatShading: flat, transparent: opacity < 1, opacity });
+}
+
+export const easeOut = k => 1 - Math.pow(1 - k, 3);
+export const easeIn = k => k * k * k;
