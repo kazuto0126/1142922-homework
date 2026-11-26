@@ -1,5 +1,58 @@
-// 九格地板：各作品的代表色 + 程式畫的標誌（向原作致敬的簡化圖形）。
+// 九格地板：各作品的代表色 + 作品標誌。
+// 標誌優先用 assets/emblems/ 裡的現成圖（必要時重新上色）；載入失敗才用下面程式畫的簡化圖形。
 // drawEmblem 的座標系：中心 (0,0)，範圍約 -1..1，畫之前已縮放好。
+
+/** 現成的標誌圖（來源見 assets/credits.json）。 */
+export const EMBLEM_FILES = [
+  'assets/emblems/emblem-0.svg', // 我的英雄學院 日文標題
+  'assets/emblems/emblem-1.svg', // 木葉標誌
+  'assets/emblems/emblem-2.webp', // 調查兵團 自由之翼
+  'assets/emblems/emblem-3.svg', // 名偵探柯南 標題
+  'assets/emblems/emblem-4.webp', // 草帽海賊團 海賊旗
+  'assets/emblems/emblem-5.webp', // 風紀委員（Judgment）
+  'assets/emblems/emblem-6.webp', // FAIRY TAIL 公會紋章
+  'assets/emblems/emblem-7.svg', // 刀劍神域 標題
+  'assets/emblems/emblem-8.svg', // 護庭十三隊
+];
+
+/** 每個標誌的擺法：size = 佔格子寬度的比例；tint = 重新上色（null 表示保留原色）。 */
+const EMBLEM_STYLE = [
+  { size: 0.78, tint: null },
+  { size: 0.58, tint: ['#ffe0a0', '#ff8a1a'] },
+  { size: 0.6, tint: null },
+  { size: 0.8, tint: null },
+  { size: 0.66, tint: null },
+  { size: 0.62, tint: null },
+  { size: 0.62, tint: ['#ffd23f', '#ff3b1f'] },
+  { size: 0.8, tint: ['#ffffff', '#9be7ff'] },
+  { size: 0.56, tint: null },
+];
+
+/** 載入全部標誌圖；失敗的回傳 null（之後改用程式畫的）。 */
+export function loadEmblems() {
+  return Promise.all(EMBLEM_FILES.map(src => new Promise(resolve => {
+    const img = new Image();
+    img.onload = () => resolve(img.naturalWidth ? img : null);
+    img.onerror = () => resolve(null);
+    img.src = src;
+  })));
+}
+
+/** 把標誌圖畫成「保留形狀、換成漸層色」的版本。 */
+function tinted(img, w, h, [c1, c2]) {
+  const c = document.createElement('canvas');
+  c.width = Math.max(1, Math.round(w));
+  c.height = Math.max(1, Math.round(h));
+  const g = c.getContext('2d');
+  g.drawImage(img, 0, 0, c.width, c.height);
+  g.globalCompositeOperation = 'source-in';
+  const gr = g.createLinearGradient(0, 0, 0, c.height);
+  gr.addColorStop(0, c1);
+  gr.addColorStop(1, c2);
+  g.fillStyle = gr;
+  g.fillRect(0, 0, c.width, c.height);
+  return c;
+}
 
 const TAU = Math.PI * 2;
 
@@ -203,8 +256,8 @@ export function drawEmblem(g, cell, cx, cy, r, color) {
 
 const FONT = "'Microsoft JhengHei', 'PingFang TC', 'Noto Sans TC', sans-serif";
 
-/** 一格的地板貼圖：代表色漸層 + 斜紋 + 標誌 + 作品名。 */
-export function tileCanvas(world, size = 512) {
+/** 一格的地板貼圖：代表色漸層 + 斜紋 + 標誌 + 作品名。emblem 是現成標誌圖（可省略）。 */
+export function tileCanvas(world, emblem = null, size = 512) {
   const c = document.createElement('canvas');
   c.width = c.height = size;
   const g = c.getContext('2d');
@@ -232,10 +285,27 @@ export function tileCanvas(world, size = 512) {
   g.strokeRect(s * 0.05, s * 0.05, s * 0.9, s * 0.9);
   g.globalAlpha = 1;
 
+  // 標誌後面墊一圈暗色光暈，讓任何顏色的標誌都看得清楚
+  const halo = g.createRadialGradient(s / 2, s * 0.44, 0, s / 2, s * 0.44, s * 0.4);
+  halo.addColorStop(0, 'rgba(0,0,0,0.45)');
+  halo.addColorStop(1, 'rgba(0,0,0,0)');
+  g.fillStyle = halo;
+  g.fillRect(0, 0, s, s);
+
   // 標誌（加一層光暈）
   g.shadowColor = mix(world.color, '#ffffff', 0.3);
   g.shadowBlur = s * 0.06;
-  drawEmblem(g, world.cell, s / 2, s * 0.44, s * 0.3, mix(world.color, '#ffffff', 0.15));
+  if (emblem) {
+    const st = EMBLEM_STYLE[world.cell];
+    const iw = emblem.naturalWidth || emblem.width, ih = emblem.naturalHeight || emblem.height;
+    const box = s * st.size;
+    const k = Math.min(box / iw, (s * 0.62) / ih);
+    const w = iw * k, h = ih * k;
+    const src = st.tint ? tinted(emblem, w, h, st.tint) : emblem;
+    g.drawImage(src, (s - w) / 2, s * 0.44 - h / 2, w, h);
+  } else {
+    drawEmblem(g, world.cell, s / 2, s * 0.44, s * 0.3, mix(world.color, '#ffffff', 0.15));
+  }
   g.shadowBlur = 0;
 
   // 作品名

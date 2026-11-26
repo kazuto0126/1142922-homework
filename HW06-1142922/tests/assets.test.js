@@ -24,7 +24,7 @@ test('可用清單只包含 manifest 裡用到的路徑', () => {
 test('素材來源清單：每張圖都有出處', () => {
   const credits = JSON.parse(fs.readFileSync(path.join(root, 'assets/credits.json'), 'utf8'));
   const files = new Set(credits.map(c => c.file));
-  for (const p of onDisk('assets/img')) assert.ok(files.has(p), p);
+  for (const p of [...onDisk('assets/img'), ...onDisk('assets/emblems')]) assert.ok(files.has(p), p);
   for (const c of credits) {
     assert.ok(c.title && c.source && c.author, JSON.stringify(c));
     assert.match(c.source, /^https:\/\//);

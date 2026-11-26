@@ -8,7 +8,7 @@ import { createStats } from './core/stats.js';
 import { loadSettings, saveSettings } from './core/settings.js';
 import { IMAGES } from './assets/manifest.js';
 import { loadImage } from './assets/loader.js';
-import { tileCanvas } from './assets/emblems.js';
+import { tileCanvas, loadEmblems } from './assets/emblems.js';
 import { createScreens } from './ui/screens.js';
 import { createAudio } from './audio/engine.js';
 import { createPerformer } from './perform.js';
@@ -50,7 +50,8 @@ async function boot() {
     Promise.all(['rimuru', 'gojo'].map(f => loadImage(IMAGES.leader[f], { kind: 'leader', label: FACTIONS[f].nameZh, sub: FACTIONS[f].nameJa, color: FACTIONS[f].secondary }))),
   ]);
   const leaderImages = { rimuru: leaderList[0], gojo: leaderList[1] };
-  WORLDS.forEach(w => stage.setWorldImage(w.cell, tileCanvas(w)));
+  const emblems = await loadEmblems();
+  WORLDS.forEach(w => stage.setWorldImage(w.cell, tileCanvas(w, emblems[w.cell])));
 
   // ── 狀態 ──
   const app = {

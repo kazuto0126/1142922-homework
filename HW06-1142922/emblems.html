@@ -3,13 +3,23 @@
 <head>
   <meta charset="utf-8">
   <title>1142922 HW06 地板標誌預覽（開發用）</title>
-  <style>body { margin: 0; background: #111; display: grid; grid-template-columns: repeat(3, 256px); gap: 8px; padding: 8px; } canvas { width: 256px; height: 256px; }</style>
+  <style>
+    body { margin: 0; background: #111; color: #ccc; font: 12px sans-serif; padding: 8px; }
+    .grid { display: grid; grid-template-columns: repeat(3, 256px); gap: 8px; margin-bottom: 12px; }
+    canvas { width: 256px; height: 256px; }
+    .raw { display: grid; grid-template-columns: repeat(9, 90px); gap: 6px; }
+    .raw img { width: 90px; height: 90px; object-fit: contain; background: #555; }
+  </style>
 </head>
 <body>
+  <div class="raw" id="raw"></div>
+  <div class="grid" id="grid"></div>
   <script type="module">
     import { WORLDS } from './js/core/worlds.js';
-    import { tileCanvas } from './js/assets/emblems.js';
-    for (const w of WORLDS) document.body.appendChild(tileCanvas(w));
+    import { tileCanvas, loadEmblems, EMBLEM_FILES } from './js/assets/emblems.js';
+    for (const f of EMBLEM_FILES) { const i = new Image(); i.src = f; document.getElementById('raw').appendChild(i); }
+    const emblems = await loadEmblems();
+    for (const w of WORLDS) document.getElementById('grid').appendChild(tileCanvas(w, emblems[w.cell]));
   </script>
 </body>
 </html>
