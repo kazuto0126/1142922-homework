@@ -313,6 +313,7 @@ export function createStage(canvas, { quality = 'high' } = {}) {
     const c = cells[i];
     if (c.piece) return c.piece;
     const piece = faction === 'rimuru' ? makeSlimeCrystal() : makeSixEyesCrystal();
+    piece.userData.faction = faction;
     piece.position.set(c.center.x + 0.55, 0, c.center.z + 0.55);
     piece.userData.baseY = TILE_TOP + 0.45;
     pieces.add(piece);
@@ -357,6 +358,42 @@ export function createStage(canvas, { quality = 'high' } = {}) {
     for (const m of cells[i].frame.children) m.material.color.set(color);
   }
 
+  /**
+   * 把某格的棋子和立牌交給特效（例如被吞噬、被粉碎）：
+   * 物件移到特效層，之後 clearBoard 會一起清掉。回傳 [piece, standee]（可能是 null）。
+   */
+  function takeCell(i) {
+    const c = cells[i];
+    const out = [c.piece, c.standee];
+    for (const o of out) {
+      if (!o) continue;
+      const world = new THREE.Vector3();
+      o.getWorldPosition(world);
+      pieces.remove(o);
+      fxLayer.add(o);
+      o.position.copy(world);
+    }
+    c.piece = null;
+    c.standee = null;
+    setFrameColor(i, c.color);
+    return out;
+  }
+
+  /** 棋盤上被某陣營佔領的格子。 */
+  function cellsOf(faction) {
+    return cells.filter(c => c.piece && c.piece.userData.faction === faction).map(c => c.tile.userData.cell);
+  }
+
+  // 結局演出可能改背景（例如無量空處），重開時要還原
+  const env = { background: scene.background.clone(), fog: scene.fog.density };
+  function resetEnvironment() {
+    scene.background.copy(env.background);
+    scene.fog.density = env.fog;
+    board.scale.setScalar(1);
+    board.rotation.set(0, 0, 0);
+    board.visible = true;
+  }
+
   let fxGeneration = 0;
   function clearBoard() {
     fxGeneration++; // 還沒觸發的延遲特效看到世代變了就不會出現
@@ -366,6 +403,7 @@ export function createStage(canvas, { quality = 'high' } = {}) {
       setFrameColor(c.tile.userData.cell, c.color);
     }
     for (const child of [...fxLayer.children]) { fxLayer.remove(child); dispose(child); }
+    resetEnvironment();
   }
 
   setQuality(quality);
@@ -374,7 +412,7 @@ export function createStage(canvas, { quality = 'high' } = {}) {
   return {
     scene, camera, renderer, controls, fxLayer,
     cellCenter: i => cells[i].center.clone(),
-    pickCell, setHover, setWorldImage, placePiece, placeStandee, clearBoard,
+    pickCell, setHover, setWorldImage, placePiece, placeStandee, clearBoard, takeCell, cellsOf, resetEnvironment,
     onFrame, tween, flyTo, orbitLine, restoreView, snapBack, resetView, setQuality, shake,
     get quality() { return quality; },
     get fxGeneration() { return fxGeneration; },

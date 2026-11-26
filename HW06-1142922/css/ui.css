@@ -261,6 +261,7 @@ h2 { margin: 0; font-size: clamp(24px, 5vw, 36px); letter-spacing: 0.15em; }
   text-shadow: 0 0 30px currentColor;
 }
 
+.result-banner.long { font-size: clamp(32px, 8vw, 96px); white-space: nowrap; }
 .tone-win .result-banner { color: #ffd84a; }
 .tone-lose .result-banner { color: #ff5a6e; }
 .tone-draw .result-banner { color: #d9e2ff; }

@@ -121,7 +121,7 @@ export function createScreens(root, handlers, { leaderImages }) {
     el.className = `screen screen-result tone-${tone}${faction ? ' ' + faction : ''}`;
     el.innerHTML = `
       <div class="result-box">
-        <div class="result-banner">${esc(banner)}</div>
+        <div class="result-banner${[...banner].length > 4 ? ' long' : ''}">${esc(banner)}</div>
         <div class="result-sub">${esc(sub)}</div>
         <div class="result-actions">
           <button class="btn primary" data-act="again">再來一局</button>

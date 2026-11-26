@@ -131,13 +131,14 @@ async function boot() {
     audio.music.playTitle();
   }
 
-  const performer = createPerformer({ stage, audio, heroImages, getSettings: () => settings });
+  const performer = createPerformer({ stage, audio, heroImages, leaderImages, getSettings: () => settings });
 
   async function show(event) {
     await performer.performMove(event);
   }
 
-  function finish() {
+  /** 對局結束：先記戰績、換結局曲，再播合體技與結局演出，最後顯示結局畫面。 */
+  async function finish() {
     const m = app.match;
     const r = m.result;
     let banner, sub, tone;
@@ -158,6 +159,8 @@ async function boot() {
     }
     screens.updateHud(hudState());
     audio.music.playEnding({ win: 'victory', lose: 'defeat', draw: 'draw' }[tone]);
+    const done = await performer.performFinish(r);
+    if (done === 'cancelled' || app.match !== m) return;
     screens.showResult({ banner, sub, tone, faction: r.winnerFaction });
   }
 
@@ -178,7 +181,7 @@ async function boot() {
         if (app.match !== m) return;
         screens.updateHud(hudState());
       }
-      if (m.isOver() && app.match === m) finish();
+      if (m.isOver() && app.match === m) await finish();
     } finally {
       if (app.match === m) app.busy = false;
     }
@@ -214,7 +217,11 @@ async function boot() {
 
   let lastHover = -1;
   canvas.addEventListener('pointermove', e => {
-    if (e.pointerType !== 'mouse' || app.screen !== 'playing') { hint.hidden = true; return; }
+    if (e.pointerType !== 'mouse' || app.screen !== 'playing' || !canPlay()) {
+      hint.hidden = true;
+      stage.setHover(-1);
+      return;
+    }
     const cell = stage.pickCell(e.clientX, e.clientY);
     const free = cell >= 0 && app.match.board[cell] === EMPTY && canPlay();
     if (free && cell !== lastHover) audio.sfx('hover');
@@ -236,5 +243,10 @@ async function boot() {
   goTitle();
 
   // 開發 / 驗證用
-  window.__hw06 = { stage, app, stats, audio, get settings() { return settings; } };
+  window.__hw06 = {
+    stage, app, stats, audio, performer,
+    get settings() { return settings; },
+    /** 驗證用：替目前輪到的人類下一手（等同點擊那一格）。 */
+    play: cell => (canPlay() ? humanMove(cell) : Promise.resolve('blocked')),
+  };
 }

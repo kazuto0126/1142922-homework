@@ -1,14 +1,14 @@
 // 把拍點表（core/director.js）對到實際的畫面：入場、cut-in、技能、落子、運鏡。
 // 每段演出都可以跳過（skip）或取消（cancel）。
 import { Timeline } from './core/timeline.js';
-import { planMove } from './core/director.js';
-import { WORLDS } from './core/worlds.js';
+import { planMove, planUnison, planEnding } from './core/director.js';
+import { WORLDS, FACTIONS } from './core/worlds.js';
 import { palette, ring } from './fx/common.js';
 import { SKILLS, makeFx } from './fx/skills/index.js';
 import * as leaders from './fx/leaders.js';
 import * as cutin from './ui/cutin.js';
 
-export function createPerformer({ stage, audio, heroImages, getSettings }) {
+export function createPerformer({ stage, audio, heroImages, leaderImages, getSettings }) {
   let current = null;
 
   /** 以舞台的每一幀驅動時間軸。 */
@@ -80,8 +80,71 @@ export function createPerformer({ stage, audio, heroImages, getSettings }) {
     return result;
   }
 
+  /**
+   * 對局結束：有人連線 → 合體技（5 秒）→ 勝利演出（7 秒）；和局 → 對撞演出（7 秒）。
+   * 每一段都可以跳過；回傳 'cancelled' 表示中途被取消（例如按了回標題）。
+   */
+  async function performFinish(result) {
+    const faction = result.winnerFaction;
+    const skipCleanup = () => { cutin.clearAll(); stage.snapBack(); };
+
+    if (faction && result.line) {
+      const plan = planUnison(result.line);
+      const tl = new Timeline();
+      tl.add(0, () => {
+        audio.duck(true);
+        stage.orbitLine(result.line, plan.duration - 300);
+      });
+      for (const b of plan.beats) {
+        if (b.kind === 'unisonHero') {
+          tl.add(b.at, () => {
+            const w = WORLDS[b.cell];
+            cutin.showCutin({ heroJa: w.heroJa, moveJa: w.moveJa, reading: w.reading, faction, image: heroImages[b.cell], tier: 'normal', worldColor: w.color, lifeMs: 650 });
+            audio.sfx('cutin');
+            SKILLS[b.cell](makeFx({ stage, cell: b.cell, faction, tier: 'normal', audio, world: w, pal: palette(faction) }));
+          });
+        } else if (b.kind === 'unisonLeader') {
+          tl.add(b.at - 300, () => { cutin.showBanner('合体', faction, { lifeMs: 450 }); audio.sfx('cutin', { pitch: 0.7 }); });
+          tl.add(b.at, () => {
+            const f = FACTIONS[faction];
+            cutin.showLeaderCutin({ faction, image: leaderImages[faction], titleJa: f.unisonJa, reading: f.unisonReading, lifeMs: 900 });
+          });
+          tl.add(b.at + 600, () => leaders.unison(stage, result.line, faction, audio));
+        }
+      }
+      tl.setDuration(plan.duration);
+      tl.onSkip(skipCleanup);
+      const r = await run(tl);
+      if (r === 'cancelled') return r;
+      stage.snapBack();
+    }
+
+    // 結局演出
+    const ending = planEnding(result);
+    const tl = new Timeline();
+    tl.add(0, () => {
+      audio.duck(false);
+      if (faction) {
+        const f = FACTIONS[faction];
+        cutin.showLeaderCutin({ faction, image: leaderImages[faction], titleJa: f.victoryJa, reading: f.victoryReading, lifeMs: 1300 });
+        leaders.victory(stage, faction, audio);
+      } else {
+        cutin.showLeaderCutin({ faction: 'rimuru', image: leaderImages.rimuru, titleJa: FACTIONS.rimuru.unisonJa, reading: FACTIONS.rimuru.unisonReading, lifeMs: 700 });
+        leaders.drawClash(stage, audio);
+      }
+    });
+    if (!faction) tl.add(650, () => cutin.showLeaderCutin({ faction: 'gojo', image: leaderImages.gojo, titleJa: FACTIONS.gojo.unisonJa, reading: FACTIONS.gojo.unisonReading, lifeMs: 700 }));
+    if (!faction) tl.add(3200, () => cutin.showBanner('勢均力敵', 'rimuru', { lifeMs: 1500 }));
+    tl.setDuration(ending.duration);
+    tl.onSkip(skipCleanup);
+    const r = await run(tl);
+    audio.duck(false);
+    return r;
+  }
+
   return {
     performMove,
+    performFinish,
     get busy() { return !!current; },
     skip() { if (current) current.skip(); },
     cancelCurrent() {

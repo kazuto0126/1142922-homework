@@ -3,7 +3,7 @@
 import { WORLDS, FACTIONS } from '../js/core/worlds.js';
 
 const EXTRA = [
-  '会心の一手', '合体', '勝利', '敗北', '勢均力敵', '引き分け', '陣營', '陣営', '利姆路', '五條悟', 'vs', 'VS',
+  '会心の一手', '決着', '合体', '勝利', '敗北', '勢均力敵', '引き分け', '陣營', '陣営', '利姆路', '五條悟', 'vs', 'VS',
   '！？!?「」『』・＝ー～…。、', 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz', '0123456789 ',
 ];
 
