@@ -59,7 +59,7 @@ export function showCutin({ heroJa, moveJa, reading, line, faction, image, tier 
       <div class="portrait"><img alt="" src="${esc(imageSrc(image))}"></div>
       <div class="words">
         <div class="hero">${esc(heroJa)}</div>
-        <div class="move">${esc(moveJa)}</div>
+        <div class="move" style="--len:${Math.max(4, [...String(moveJa)].length)}">${esc(moveJa)}</div>
         <div class="reading">${esc(reading)}</div>
         ${line ? `<div class="line">${esc(line)}</div>` : ''}
       </div>

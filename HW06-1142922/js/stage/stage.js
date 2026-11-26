@@ -127,9 +127,9 @@ export function createStage(canvas, { quality = 'high' } = {}) {
   }
 
   /** 在 ms 毫秒內每幀呼叫 fn(0..1)。回傳結束時 resolve 的 Promise。 */
-  function tween(ms, fn) {
+  function tween(ms, fn, { camera: isCamera = false } = {}) {
     return new Promise(resolve => {
-      const t = { elapsed: 0, ms: Math.max(1, ms), fn, resolve };
+      const t = { elapsed: 0, ms: Math.max(1, ms), fn, resolve, camera: isCamera };
       tweens.add(t);
       fn(0);
     });
@@ -148,8 +148,30 @@ export function createStage(canvas, { quality = 'high' } = {}) {
     }
     animateCells(dt);
     if (!cinematic) controls.update();
+    let shook = false;
+    if (shakeAmp > 0) {
+      shakeT += dt;
+      const k = shakeT / shakeDur;
+      if (k >= 1) shakeAmp = 0;
+      else {
+        const a = shakeAmp * (1 - k);
+        shakeOff.set((Math.random() - 0.5) * a, (Math.random() - 0.5) * a, (Math.random() - 0.5) * a);
+        camera.position.add(shakeOff);
+        shook = true;
+      }
+    }
     if (useComposer) composer.render(); else renderer.render(scene, camera);
+    if (shook) camera.position.sub(shakeOff);
   });
+
+  let shakeAmp = 0, shakeT = 0, shakeDur = 1;
+  const shakeOff = new THREE.Vector3();
+  /** 鏡頭震動。amp：震幅（世界單位），ms：長度。 */
+  function shake(amp = 0.2, ms = 300) {
+    shakeAmp = Math.max(shakeAmp, amp);
+    shakeDur = ms / 1000;
+    shakeT = 0;
+  }
 
   const now = performance.now();
   function animateCells(dt) {
@@ -199,7 +221,7 @@ export function createStage(canvas, { quality = 'high' } = {}) {
       camera.position.lerpVectors(fromPos, toPos, e);
       controls.target.lerpVectors(fromTarget, toTarget, e);
       camera.lookAt(controls.target);
-    }).finally(() => { cinematic--; });
+    }, { camera: true }).finally(() => { cinematic = Math.max(0, cinematic - 1); });
   }
 
   function flyTo(i, ms = 700) {
@@ -224,7 +246,7 @@ export function createStage(canvas, { quality = 'high' } = {}) {
       camera.position.lerpVectors(startPos, orbit, blend);
       controls.target.lerpVectors(startTarget, target, blend);
       camera.lookAt(controls.target);
-    }).finally(() => { cinematic--; });
+    }, { camera: true }).finally(() => { cinematic = Math.max(0, cinematic - 1); });
   }
 
   async function restoreView(ms = 600) {
@@ -237,7 +259,11 @@ export function createStage(canvas, { quality = 'high' } = {}) {
 
   /** 跳過演出時：鏡頭直接回到原位。 */
   function snapBack() {
-    for (const t of [...tweens]) { tweens.delete(t); t.resolve(); }
+    for (const t of [...tweens]) {
+      tweens.delete(t);
+      if (!t.camera) { try { t.fn(1); } catch (e) { console.error(e); } } // 一般動畫直接跳到結尾
+      t.resolve();
+    }
     cinematic = 0;
     if (saved) {
       camera.position.copy(saved.pos);
@@ -347,7 +373,7 @@ export function createStage(canvas, { quality = 'high' } = {}) {
     scene, camera, renderer, controls, fxLayer,
     cellCenter: i => cells[i].center.clone(),
     pickCell, setHover, setWorldImage, placePiece, placeStandee, clearBoard,
-    onFrame, tween, flyTo, orbitLine, restoreView, snapBack, resetView, setQuality,
+    onFrame, tween, flyTo, orbitLine, restoreView, snapBack, resetView, setQuality, shake,
     get quality() { return quality; },
     get isCinematic() { return cinematic > 0; },
   };

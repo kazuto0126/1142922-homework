@@ -10,6 +10,7 @@ import { IMAGES } from './assets/manifest.js';
 import { loadImage } from './assets/loader.js';
 import { createScreens } from './ui/screens.js';
 import { createAudio } from './audio/engine.js';
+import { createPerformer } from './perform.js';
 
 const CPU_THINK_MS = 400;
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -96,6 +97,7 @@ async function boot() {
   function goTitle() {
     app.screen = 'title';
     app.match = null;
+    performer.cancelCurrent();
     stage.clearBoard();
     stage.resetView();
     stage.controls.autoRotate = true;
@@ -117,6 +119,7 @@ async function boot() {
 
   function startMatch() {
     app.screen = 'playing';
+    performer.cancelCurrent();
     app.match = createMatch({ mode: app.mode, firstFaction: app.faction });
     app.busy = false;
     app.thinking = false;
@@ -128,11 +131,10 @@ async function boot() {
     audio.music.playTitle();
   }
 
+  const performer = createPerformer({ stage, audio, heroImages, getSettings: () => settings });
+
   async function show(event) {
-    audio.sfx('place');
-    audio.music.playCell(event.index);
-    stage.placePiece(event.index, event.faction);
-    stage.placeStandee(event.index, event.faction, heroImages[event.index]);
+    await performer.performMove(event);
   }
 
   function finish() {
@@ -164,6 +166,7 @@ async function boot() {
     app.busy = true;
     try {
       await show(m.play(cell));
+      if (app.match !== m) return;
       screens.updateHud(hudState());
       if (!m.isOver() && m.isCpuTurn()) {
         app.thinking = true;
@@ -172,6 +175,7 @@ async function boot() {
         if (app.match !== m) return; // 中途回到標題或重開
         app.thinking = false;
         await show(m.cpuPlay(Math.random));
+        if (app.match !== m) return;
         screens.updateHud(hudState());
       }
       if (m.isOver() && app.match === m) finish();
@@ -185,7 +189,21 @@ async function boot() {
 
   // ── 點擊 / 拖曳 ──
   let down = null;
-  canvas.addEventListener('pointerdown', e => { down = { x: e.clientX, y: e.clientY }; });
+  // 演出中：點一下（畫面任何地方）或按空白鍵就跳過；這次點擊不會被當成下棋
+  canvas.addEventListener('pointerdown', e => {
+    if (performer.busy) {
+      performer.skip();
+      down = null;
+      return;
+    }
+    down = { x: e.clientX, y: e.clientY };
+  });
+  document.addEventListener('keydown', e => {
+    if (e.code === 'Space' && performer.busy) {
+      e.preventDefault();
+      performer.skip();
+    }
+  });
   canvas.addEventListener('pointerup', e => {
     const d = down;
     down = null;

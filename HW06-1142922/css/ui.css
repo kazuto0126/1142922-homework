@@ -321,7 +321,7 @@ h2 { margin: 0; font-size: clamp(24px, 5vw, 36px); letter-spacing: 0.15em; }
   animation: band-in 0.28s cubic-bezier(.2, .9, .3, 1) both;
 }
 
-.cutin.strip .band { top: 60%; height: clamp(96px, 18vh, 170px); }
+.cutin.strip .band { top: 70%; height: clamp(90px, 17vh, 160px); }
 .cutin.full .band { top: 32%; height: clamp(150px, 34vh, 300px); }
 
 .cutin .portrait { height: 100%; aspect-ratio: 4 / 5; overflow: hidden; transform: skewY(5deg); flex: none; }
@@ -340,8 +340,10 @@ h2 { margin: 0; font-size: clamp(24px, 5vw, 36px); letter-spacing: 0.15em; }
 .cutin .hero { font-family: var(--jp-font); font-size: clamp(14px, 2vw, 22px); color: #fff; opacity: 0.9; }
 
 .cutin .move {
+  --len: 6;
   font-family: var(--jp-font);
-  font-size: clamp(26px, 6vw, 76px);
+  font-size: min(clamp(26px, 6vw, 76px), calc(58vw / var(--len)));
+  white-space: nowrap;
   line-height: 1.05;
   color: #fff;
   -webkit-text-stroke: 1px color-mix(in srgb, var(--w) 70%, #000);
@@ -349,7 +351,7 @@ h2 { margin: 0; font-size: clamp(24px, 5vw, 36px); letter-spacing: 0.15em; }
   animation: move-in 0.35s 0.08s cubic-bezier(.2, 1.4, .4, 1) both;
 }
 
-.cutin.full .move { font-size: clamp(32px, 8vw, 104px); }
+.cutin.full .move { font-size: min(clamp(32px, 8vw, 104px), calc(62vw / var(--len))); }
 .cutin .reading { font-size: clamp(12px, 1.6vw, 18px); letter-spacing: 0.2em; color: #fff; opacity: 0.85; }
 .cutin .line { font-family: var(--jp-font); font-size: clamp(16px, 2.4vw, 28px); color: #ffe27a; margin-top: 4px; }
 

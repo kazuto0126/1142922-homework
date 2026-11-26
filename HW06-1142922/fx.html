@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>1142922 HW06 特效預覽（開發用）</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/ui.css">
+  <style>
+    #bar { position: fixed; left: 10px; top: 10px; z-index: 50; background: rgba(0,0,0,.6); padding: 6px 10px; border-radius: 8px; font-size: 13px; }
+  </style>
+  <script type="importmap">
+    { "imports": { "three": "./vendor/three/three.module.min.js", "three/addons/": "./vendor/three/addons/" } }
+  </script>
+</head>
+<body>
+  <canvas id="stage"></canvas>
+  <div id="bar">特效預覽：?cell=0..8&amp;faction=rimuru|gojo&amp;tier=normal|key&amp;all=1（點一下開聲音）</div>
+  <script type="module">
+    import { createStage } from './js/stage/stage.js';
+    import { WORLDS } from './js/core/worlds.js';
+    import { IMAGES } from './js/assets/manifest.js';
+    import { loadImage } from './js/assets/loader.js';
+    import { createAudio } from './js/audio/engine.js';
+    import { createPerformer } from './js/perform.js';
+    import { DEFAULT_SETTINGS } from './js/core/settings.js';
+
+    const q = new URLSearchParams(location.search);
+    const all = q.has('all');
+    let cell = Number(q.get('cell') ?? 4);
+    const faction = q.get('faction') === 'gojo' ? 'gojo' : 'rimuru';
+    const tier = ['normal', 'key', 'finish'].includes(q.get('tier')) ? q.get('tier') : 'normal';
+    const period = Number(q.get('period') ?? 2500);
+
+    const stage = createStage(document.getElementById('stage'), { quality: q.get('quality') === 'low' ? 'low' : 'high' });
+    const heroImages = await Promise.all(WORLDS.map(w => loadImage(IMAGES.hero[w.cell], { kind: 'hero', label: w.heroZh, sub: w.work, color: w.color })));
+    const worldImages = await Promise.all(WORLDS.map(w => loadImage(IMAGES.world[w.cell], { kind: 'world', label: w.work, sub: w.heroZh, color: w.color })));
+    worldImages.forEach((img, i) => stage.setWorldImage(i, img));
+    const audio = createAudio(DEFAULT_SETTINGS);
+    document.addEventListener('pointerdown', () => audio.unlock());
+    const performer = createPerformer({ stage, audio, heroImages, getSettings: () => ({ ...DEFAULT_SETTINGS }) });
+
+    async function play() {
+      stage.clearBoard();
+      stage.snapBack();
+      await performer.performMove({ index: cell, faction, tier, classification: {} });
+      if (all) cell = (cell + 1) % 9;
+    }
+    play();
+    setInterval(play, period);
+    window.__fx = { stage, performer, play };
+  </script>
+</body>
+</html>
