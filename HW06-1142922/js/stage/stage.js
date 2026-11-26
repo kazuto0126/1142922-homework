@@ -7,6 +7,7 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { WORLDS, FACTIONS } from '../core/worlds.js';
+import { makeSky, makeDust, makeArenaRings, makeShards, makeUnderside, makeSeams, makeLightShafts, bevelTileGeometry } from './scenery.js';
 import { makeStudioEnv, createMirror, brushedTexture, stoneRoughness, makeCrimsonCrystal, makeSixEyesCrystal, setCrystalQuality } from './look.js';
 
 export const CELL = 2;
@@ -96,15 +97,24 @@ export function createStage(canvas, { quality = 'high' } = {}) {
     return { light: l, owns: () => l.userData.owner === token };
   }
 
-  // ── 背景星空 ──
-  scene.add(makeStars());
+  // ── 背景：星雲天空、光塵、遠方的光環與浮空碎片、光柱 ──
+  const uTime = { value: 0 }; // 場景美術共用的時間（GPU 動畫）
+  const sky = makeSky(uTime);
+  const dust = makeDust(uTime);
+  const arena = makeArenaRings();
+  const shards = makeShards();
+  scene.add(sky, dust, arena.group, shards.mesh, makeLightShafts(uTime));
 
   // ── 平台與格子 ──
   const board = new THREE.Group();
   scene.add(board);
   board.add(makePlatform(mirror));
+  const underside = makeUnderside(uTime, STEP * 3 + 0.6);
+  board.add(underside.group);
+  board.add(makeSeams(uTime, STEP, -0.14));
 
   const brushed = brushedTexture();
+  const tileGeo = bevelTileGeometry(CELL, 0.25);
   const tiles = [];
   const cells = WORLDS.map(w => {
     const i = w.cell;
@@ -115,7 +125,7 @@ export function createStage(canvas, { quality = 'high' } = {}) {
       color: '#ffffff', roughness: 0.55, metalness: 0.05, emissive: '#ffffff', emissiveIntensity: 0.08,
       clearcoat: 0.35, clearcoatRoughness: 0.12, specularIntensity: 0.4, envMapIntensity: 0.35,
     }), { strength: 0.5, blur: 1.2 });
-    const tile = new THREE.Mesh(new THREE.BoxGeometry(CELL, 0.25, CELL), [side, side, top, side, side, side]);
+    const tile = new THREE.Mesh(tileGeo, [top, side]);
     tile.castShadow = true;
     tile.receiveShadow = true;
     tile.position.copy(center);
@@ -255,6 +265,21 @@ export function createStage(canvas, { quality = 'high' } = {}) {
     impactPass.uniforms.uAberration.value = fxPost.aberration;
     impactPass.uniforms.uZoom.value = fxPost.zoom;
     impactPass.uniforms.uFlash.value = fxPost.flash;
+    // 場景美術：時間、光環、碎片、符文陣、光塵
+    uTime.value += dt;
+    const T = uTime.value;
+    arena.update(dt);
+    shards.update(T);
+    underside.update(T);
+    dust.material.uniforms.pixelRatio.value = renderer.getPixelRatio();
+    impactPass.uniforms.uTime.value = T;
+    // 兩側陣營色的燈慢慢呼吸（錯開節奏）
+    accentL.intensity = 22 * (0.8 + 0.2 * Math.sin(T * 0.9));
+    accentR.intensity = 22 * (0.8 + 0.2 * Math.sin(T * 0.9 + 2.1));
+    // 領域展開時背景換掉：星雲天空淡出，結束後再淡回來
+    const skyTarget = scene.background.equals(env.background) ? 1 : 0;
+    const su = sky.material.uniforms.uFade;
+    su.value += (skyTarget - su.value) * Math.min(1, dt * 3);
     fovKick *= Math.exp(-dt * 6);
     if (Math.abs(camera.fov - (baseFov + fovKick)) > 0.01) { camera.fov = baseFov + fovKick; camera.updateProjectionMatrix(); }
     controls.enabled = !camTween; // 鏡頭動畫結束就自動還給玩家操作
@@ -642,13 +667,15 @@ const IMPACT_SHADER = {
     uAberration: { value: 0 },
     uZoom: { value: 0 },
     uFlash: { value: 0 },
+    uTime: { value: 0 },
   },
   vertexShader: `
     varying vec2 vUv;
     void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
   fragmentShader: `
     uniform sampler2D tDiffuse;
-    uniform float uAberration, uZoom, uFlash;
+    uniform float uAberration, uZoom, uFlash, uTime;
+    float grain(vec2 p) { return fract(sin(dot(p, vec2(12.9898, 78.233)) + uTime * 7.31) * 43758.5453); }
     varying vec2 vUv;
     void main() {
       vec2 dir = vUv - 0.5;
@@ -669,6 +696,12 @@ const IMPACT_SHADER = {
       col *= 1.0 + uFlash * 2.0; // 閃光只加亮原本的顏色，不會蒙上一層灰
       float vig = smoothstep(0.85, 0.25, length(dir));
       col *= mix(1.0, vig, 0.35);
+      // 調色：暗部偏冷藍、亮部微暖，畫面比較有電影感
+      float luma = dot(col, vec3(0.2126, 0.7152, 0.0722));
+      col *= mix(vec3(0.93, 0.98, 1.08), vec3(1.04, 1.0, 0.96), smoothstep(0.05, 0.6, luma));
+      // 很淡的底片顆粒（只在暗部明顯）
+      col += (grain(vUv * 1000.0) - 0.5) * 0.018 * (1.0 - smoothstep(0.0, 0.4, luma));
+      col = max(col, 0.0);
       gl_FragColor = vec4(col, 1.0);
     }`,
 };
@@ -749,19 +782,3 @@ function makePlatform(mirror) {
   return g;
 }
 
-function makeStars() {
-  const n = 900;
-  const pos = new Float32Array(n * 3);
-  for (let i = 0; i < n; i++) {
-    const r = 60 + Math.random() * 60;
-    const th = Math.random() * Math.PI * 2;
-    const ph = Math.acos(Math.random() * 1.6 - 0.6);
-    pos[i * 3] = r * Math.sin(ph) * Math.cos(th);
-    pos[i * 3 + 1] = r * Math.cos(ph);
-    pos[i * 3 + 2] = r * Math.sin(ph) * Math.sin(th);
-  }
-  const geo = new THREE.BufferGeometry();
-  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-  const stars = new THREE.Points(geo, new THREE.PointsMaterial({ color: '#cfd8ff', size: 0.35, sizeAttenuation: true, fog: false }));
-  return stars;
-}
