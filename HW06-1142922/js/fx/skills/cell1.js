@@ -1,6 +1,7 @@
 // 1 漩渦鳴人：螺旋丸 —— 手中聚成旋轉的藍色球體 → 往下推進 → 炸開成水平氣旋。
 import * as THREE from 'three';
 import { emit, ring, flash, converge, spawn, glowMat, later, residue, easeIn } from '../common.js';
+import { hit, energyMaterial } from '../realism.js';
 
 export default function (fx) {
   const { stage, pos, pal, audio, mul, scale } = fx;
@@ -11,7 +12,7 @@ export default function (fx) {
   // 螺旋丸本體：白色核心 + 藍色外殼 + 三個不同軸向快速旋轉的環
   const ball = new THREE.Group();
   ball.add(new THREE.Mesh(new THREE.SphereGeometry(0.22, 24, 16), glowMat('#ffffff', 0.8)));
-  const shell = new THREE.Mesh(new THREE.SphereGeometry(0.5, 24, 16), glowMat(blue, 0.3));
+  const shell = new THREE.Mesh(new THREE.SphereGeometry(0.5, 40, 24), energyMaterial(stage, { c1: '#eafcff', c2: '#' + blue.getHexString(), scroll: 6, scale: [8, 3], twist: 3, fresnel: 1.6, threshold: 0.28 }));
   ball.add(shell);
   const rings = [0, 1, 2].map(i => {
     const r = new THREE.Mesh(new THREE.TorusGeometry(0.55, 0.035, 8, 48), glowMat(i === 1 ? '#ffffff' : blue, 0.9));
@@ -41,8 +42,7 @@ export default function (fx) {
     emit(stage, { pos: end, count: 60 * mul, color: '#ffffff', color2: blue, shape: 'ring', speed: 4 * scale, drag: 1.5, life: 0.8, size: 0.25 });
     ring(stage, pos, { color: blue, radius: 2.3 * scale, life: 0.5, width: 0.22 });
     ring(stage, pos, { color: '#ffffff', radius: 1.7 * scale, life: 0.45, width: 0.08, y: 0.35, delay: 0.06 });
-    flash(stage, pos, { color: blue, intensity: 50 * scale });
-    stage.shake(0.22 * scale, 300);
+    hit(fx, { power: 1.0, color: blue, smokeColor: '#5a6a80' });
     audio.sfx('explode', { pitch: 1.3, gain: 0.8 });
     residue(fx, { delay: 0.1 });
   });

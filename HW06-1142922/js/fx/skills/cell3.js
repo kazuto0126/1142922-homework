@@ -1,6 +1,7 @@
 // 3 江戶川柯南：キック力増強シューズ —— 腰帶彈出足球 → 帶火花的直線急射 → 撞擊爆開。
 import * as THREE from 'three';
 import { emit, ring, flash, spawn, solidMat, later, residue, easeOut } from '../common.js';
+import { hit } from '../realism.js';
 
 function makeBall() {
   const ball = new THREE.Mesh(new THREE.IcosahedronGeometry(0.26, 1), solidMat('#ffffff', { emissive: '#ffffff', emissiveIntensity: 0.4 }));
@@ -53,8 +54,7 @@ export default function (fx) {
     emit(stage, { pos: target, count: 110 * mul, color: '#ffe680', color2: c, speed: 7 * scale, life: 0.55, size: 0.3 });
     ring(stage, pos, { color: c, radius: 2.0 * scale, life: 0.45, width: 0.2 });
     ring(stage, pos, { color: '#ffd24a', radius: 1.4 * scale, life: 0.35, width: 0.1, y: 0.45 });
-    flash(stage, pos, { color: '#ffd24a', intensity: 55 * scale });
-    stage.shake(0.2 * scale, 260);
+    hit(fx, { power: 0.9, color: '#ffd24a', at: target });
     audio.sfx('impact', { pitch: 1.1 });
     residue(fx, { delay: 0.1 });
   });

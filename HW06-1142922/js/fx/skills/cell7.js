@@ -1,6 +1,7 @@
 // 7 桐谷和人：スターバースト・ストリーム —— 黑白雙劍的 16 道斬擊殘影依序閃現 → 最後一擊十字閃光。
 import * as THREE from 'three';
 import { emit, ring, flash, spawn, glowMat, later, residue, rand } from '../common.js';
+import { hit } from '../realism.js';
 
 function slashMesh(color, len, width) {
   // 中間粗、兩端尖的刀光
@@ -46,8 +47,7 @@ export default function (fx) {
     slash(17, '#4a78ff', 2.6, 0.22, -Math.PI / 4, 0.4);
     emit(stage, { pos: center, count: 100 * mul, color: '#ffffff', color2: fx.color, speed: 7 * scale, life: 0.5, size: 0.3 });
     ring(stage, pos, { color: fx.color, radius: 2.0 * scale, life: 0.45, width: 0.18 });
-    flash(stage, pos, { color: '#cfefff', intensity: 30 * scale });
-    stage.shake(0.25 * scale, 300);
+    hit(fx, { power: 1.0, color: '#9be7ff', scorched: false });
     audio.sfx('impact', { pitch: 1.2 });
     residue(fx, { delay: 0.1 });
   });

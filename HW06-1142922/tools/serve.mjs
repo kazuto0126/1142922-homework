@@ -23,7 +23,22 @@ const TYPES = {
   '.woff2': 'font/woff2',
 };
 
+// 開發用：POST /__shot?name=xxx 把頁面送來的 data URL 存成 D:/mid/.tools/hw06-shots/xxx.jpg（檢查特效用）
+const SHOT_DIR = process.env.SHOT_DIR || 'D:/mid/.tools/hw06-shots';
+
 http.createServer((req, res) => {
+  if (req.method === 'POST' && req.url.startsWith('/__shot')) {
+    const name = (new URL(req.url, 'http://x').searchParams.get('name') || 'shot').replace(/[^\w-]/g, '');
+    let body = '';
+    req.on('data', d => { body += d; });
+    req.on('end', () => {
+      fs.mkdirSync(SHOT_DIR, { recursive: true });
+      const b64 = body.replace(/^data:image\/\w+;base64,/, '');
+      fs.writeFileSync(path.join(SHOT_DIR, `${name}.jpg`), Buffer.from(b64, 'base64'));
+      res.writeHead(204).end();
+    });
+    return;
+  }
   let rel;
   try {
     rel = decodeURIComponent(new URL(req.url, 'http://x').pathname);

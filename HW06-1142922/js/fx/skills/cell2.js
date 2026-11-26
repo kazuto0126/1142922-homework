@@ -1,6 +1,7 @@
 // 2 艾連：巨人化 —— 黃色落雷打中格子 → 蒸氣爆發 → 巨大的手臂從地面伸出再沉下。
 import * as THREE from 'three';
 import { emit, ring, flash, bolt, orb, spawn, solidMat, later, residue, easeOut } from '../common.js';
+import { hit } from '../realism.js';
 
 function makeArm(scale) {
   const skin = solidMat('#c97856', { emissive: '#5a1d0c', emissiveIntensity: 0.35 });
@@ -37,7 +38,7 @@ export default function (fx) {
     emit(stage, { pos: pos.clone().setY(pos.y + 0.2), count: 90 * mul, color: '#fff1e0', color2: '#ffb36b', shape: 'up', angle: 0.9, speed: 3.5 * scale, drag: 1.2, gravity: 1.5, life: 1.3, size: 0.8 });
     orb(stage, pos.clone().setY(pos.y + 0.5), { color: '#ff9a3a', grow: [0.3, 1.6 * scale], life: 0.45, opacity: [0.8, 0] });
     ring(stage, pos, { color: gold, radius: 2.2 * scale, life: 0.5, width: 0.2 });
-    stage.shake(0.3 * scale, 400);
+    hit(fx, { power: 1.3, smokeColor: '#d8d0c8', debrisColor: '#7a5b45' });
     audio.sfx('explode', { pitch: 0.8 });
   });
 

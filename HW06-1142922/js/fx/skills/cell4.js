@@ -1,6 +1,7 @@
 // 4 魯夫：ゴムゴムの猿神銃（五檔）—— 白雲般的粒子湧出 + 鼓點 → 巨大拳頭從天而降砸下。
 import * as THREE from 'three';
 import { emit, ring, flash, spawn, solidMat, later, residue, easeIn } from '../common.js';
+import { hit } from '../realism.js';
 
 function makeGiantFist(scale) {
   const white = solidMat('#efe6d2', { emissive: '#4a3a14', emissiveIntensity: 0.45 });
@@ -59,8 +60,7 @@ export default function (fx) {
     emit(stage, { pos: pos.clone().setY(pos.y + 0.3), count: 60 * mul, color: c, color2: '#ffffff', shape: 'up', angle: 0.8, speed: 7, gravity: -10, life: 0.8, size: 0.3 });
     ring(stage, pos, { color: '#ffe27a', radius: 3.2 * scale, life: 0.6, width: 0.18 });
     ring(stage, pos, { color: '#ffe27a', radius: 2.2 * scale, life: 0.5, width: 0.12, delay: 0.06 });
-    flash(stage, pos, { color: '#ffd27a', intensity: 25 * scale, distance: 9 });
-    stage.shake(0.45 * scale, 450);
+    hit(fx, { power: 1.5, color: '#ffe27a', smokeColor: '#e8e4dc', debrisColor: '#8a7f6a' });
     audio.sfx('explode');
     audio.sfx('impact', { pitch: 0.7 });
     residue(fx, { delay: 0.15 });

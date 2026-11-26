@@ -1,11 +1,12 @@
 // 8 黑崎一護：月牙天衝 —— 黑紅色的新月形劍氣橫掃過格子 → 殘留黑紅火焰。
 import * as THREE from 'three';
 import { emit, ring, flash, converge, spawn, glowMat, later, residue, easeOut } from '../common.js';
+import { hit, energyMaterial } from '../realism.js';
 
-function crescent(scale) {
+function crescent(stage, scale) {
   const g = new THREE.Group();
   // 外圈紅光、內圈黑色（用一般混合的深色，才看得出「黑」）
-  const red = new THREE.Mesh(new THREE.RingGeometry(1.05, 1.5, 48, 1, -Math.PI * 0.45, Math.PI * 0.9), glowMat('#ff2a3d', 0.95));
+  const red = new THREE.Mesh(new THREE.RingGeometry(1.05, 1.5, 48, 1, -Math.PI * 0.45, Math.PI * 0.9), energyMaterial(stage, { c1: '#ffb0b8', c2: '#9a0012', scroll: 5, scale: [12, 2], fresnel: 0.5, threshold: 0.22 }));
   const black = new THREE.Mesh(
     new THREE.RingGeometry(1.12, 1.4, 48, 1, -Math.PI * 0.42, Math.PI * 0.84),
     new THREE.MeshBasicMaterial({ color: '#0a0004', transparent: true, opacity: 0.92, side: THREE.DoubleSide, depthWrite: false }),
@@ -27,7 +28,7 @@ export default function (fx) {
   audio.sfx('charge', { pitch: 0.7, gain: 0.7 });
 
   later(stage, 180, () => {
-    const moon = crescent(1.1 * scale);
+    const moon = crescent(stage, 1.1 * scale);
     // 新月的開口朝前進方向，立在垂直面上
     moon.position.copy(from);
     moon.rotation.y = 0;
@@ -36,7 +37,8 @@ export default function (fx) {
       update(k) {
         moon.position.lerpVectors(from, to, easeOut(k));
         moon.scale.setScalar(1.1 * scale * (0.7 + k * 0.6));
-        moon.children.forEach(m => { m.material.opacity = k < 0.7 ? 0.95 : 0.95 * (1 - (k - 0.7) / 0.3); });
+        const o = k < 0.7 ? 0.95 : 0.95 * (1 - (k - 0.7) / 0.3);
+        moon.children.forEach(m => { if (m.material.uniforms) m.material.uniforms.uOpacity.value = o; else m.material.opacity = o; });
         emit(stage, { pos: moon.position, count: 5 * mul, color: '#ff2a3d', color2: '#2a0008', speed: 1.5, life: 0.35, size: 0.3, radius: 0.8 });
       },
     });
@@ -47,8 +49,7 @@ export default function (fx) {
   later(stage, 380, () => {
     emit(stage, { pos: pos.clone().setY(pos.y + 0.4), count: 110 * mul, color: red, color2: '#1a0006', speed: 7 * scale, life: 0.55, size: 0.32 });
     ring(stage, pos, { color: '#ff2a3d', radius: 2.2 * scale, life: 0.5, width: 0.22 });
-    flash(stage, pos, { color: '#ff2a3d', intensity: 50 * scale });
-    stage.shake(0.28 * scale, 320);
+    hit(fx, { power: 1.2, color: '#ff2a3d', smokeColor: '#1a0a10' });
     audio.sfx('explode', { pitch: 0.9, gain: 0.8 });
   });
 

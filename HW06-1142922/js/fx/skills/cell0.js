@@ -1,6 +1,7 @@
 // 0 綠谷出久：デトロイト・スマッシュ —— 綠色電弧纏身 → 一拳打出錐形衝擊波 → 地面放射狀裂紋 + 氣浪環。
 import * as THREE from 'three';
 import { emit, ring, flash, arcs, spawn, glowMat, later, residue, rand, easeOut } from '../common.js';
+import { hit, energyMaterial } from '../realism.js';
 
 export default function (fx) {
   const { stage, pos, pal, audio, mul, scale } = fx;
@@ -14,14 +15,15 @@ export default function (fx) {
 
   later(stage, 250, () => {
     // 錐形衝擊波（從拳頭往下打）
-    const cone = new THREE.Mesh(new THREE.ConeGeometry(1, 1.6, 32, 1, true), glowMat(c, 0.55));
+    const coneMat = energyMaterial(stage, { c1: '#eafff0', c2: '#' + c.getHexString(), scroll: -6, scale: [6, 3], fresnel: 0.8, threshold: 0.3, fadeV: 0.15 });
+    const cone = new THREE.Mesh(new THREE.ConeGeometry(1, 1.6, 40, 1, true), coneMat);
     cone.position.copy(fist).setY(fist.y - 0.8);
     spawn(stage, cone, {
       life: 0.35,
       update(k) {
         const s = 0.2 + easeOut(k) * 1.4 * scale;
         cone.scale.set(s, 1 + k * 0.4, s);
-        cone.material.opacity = 0.55 * (1 - k);
+        coneMat.uniforms.uOpacity.value = 1 - k;
       },
     });
     emit(stage, { pos: fist, count: 120 * mul, color: c, color2: '#ffffff', shape: 'cone', dir: new THREE.Vector3(0, -1, 0), angle: 0.6, speed: 9 * scale, life: 0.45, size: 0.3 });
@@ -49,8 +51,7 @@ export default function (fx) {
     ring(stage, pos, { color: c, radius: 2.4 * scale, life: 0.5, width: 0.25 });
     ring(stage, pos, { color: '#ffffff', radius: 1.6 * scale, life: 0.4, width: 0.1, delay: 0.05, y: 0.4 });
     emit(stage, { pos: pos.clone().setY(pos.y + 0.2), count: 70 * mul, color: '#ddffe8', color2: c, shape: 'ring', speed: 7 * scale, drag: 2.5, life: 0.6, size: 0.35 });
-    flash(stage, pos, { color: c, intensity: 50 * scale });
-    stage.shake(0.25 * scale, 320);
+    hit(fx, { power: 1.1, debrisColor: '#6d6a60' });
     audio.sfx('impact');
     audio.sfx('wind', { delay: 0.05 });
     residue(fx, { delay: 0.15 });

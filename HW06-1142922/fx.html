@@ -59,6 +59,37 @@
     play();
     setInterval(play, period);
     window.__fx = { stage, performer, play };
+
+    // 開發用：把目前的 3D 畫面存成圖（POST 給 tools/serve.mjs），在畫完一幀之後立刻抓
+    // 截圖時改用手動推進（瀏覽器在預覽視窗隱藏時會暫停 requestAnimationFrame）
+    let tick = null;
+    window.__shot = name => {
+      tick();
+      const src = stage.renderer.domElement;
+      const c = document.createElement('canvas');
+      c.width = 640;
+      c.height = Math.round(640 * src.height / src.width);
+      c.getContext('2d').drawImage(src, 0, 0, c.width, c.height);
+      return fetch(`/__shot?name=${encodeURIComponent(name)}`, { method: 'POST', body: c.toDataURL('image/jpeg', 0.8) }).catch(() => {});
+    };
+    /** 播一次技能，並在指定的毫秒數各存一張圖。 */
+    window.__shots = async (prefix, times, opts = {}) => {
+      tick = stage.manualTick(true);
+      const timer = setInterval(() => tick(), 33);
+      try {
+        stage.clearBoard();
+        if (opts.run) opts.run(); else play();
+        const t0 = performance.now();
+        for (const t of times) {
+          await new Promise(r => setTimeout(r, Math.max(0, t - (performance.now() - t0))));
+          await window.__shot(`${prefix}-${t}`);
+        }
+      } finally {
+        clearInterval(timer);
+        stage.manualTick(false);
+      }
+      return 'ok';
+    };
   </script>
 </body>
 </html>

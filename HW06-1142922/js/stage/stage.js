@@ -5,6 +5,8 @@ import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { WORLDS, FACTIONS } from '../core/worlds.js';
 
 export const CELL = 2;
@@ -31,10 +33,16 @@ export function createStage(canvas, { quality = 'high' } = {}) {
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.05;
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
   const scene = new THREE.Scene();
   scene.background = new THREE.Color('#05060d');
-  scene.fog = new THREE.FogExp2('#05060d', 0.028);
+  scene.fog = new THREE.FogExp2('#05060d', 0.022);
+  // 環境反射：讓金屬邊框、棋子有真實的高光
+  const pmrem = new THREE.PMREMGenerator(renderer);
+  scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+  scene.environmentIntensity = 0.45;
 
   const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 300);
   const controls = new OrbitControls(camera, canvas);
@@ -48,10 +56,25 @@ export function createStage(canvas, { quality = 'high' } = {}) {
   controls.maxDistance = 16;
 
   // ── 燈光 ──
-  scene.add(new THREE.HemisphereLight('#9fb8ff', '#120a1e', 0.9));
-  const sun = new THREE.DirectionalLight('#ffffff', 1.4);
-  sun.position.set(4, 10, 6);
-  scene.add(sun);
+  // 主光（暖白、投影）+ 冷色輪廓光 + 兩側陣營色補光
+  scene.add(new THREE.HemisphereLight('#8aa4ff', '#0b0614', 0.35));
+  const key = new THREE.DirectionalLight('#fff1dc', 2.4);
+  key.position.set(5, 11, 7);
+  key.castShadow = true;
+  key.shadow.mapSize.set(2048, 2048);
+  Object.assign(key.shadow.camera, { left: -6, right: 6, top: 6, bottom: -6, near: 1, far: 30 });
+  key.shadow.bias = -0.0004;
+  key.shadow.normalBias = 0.02;
+  key.shadow.radius = 4;
+  scene.add(key);
+  const rim = new THREE.DirectionalLight('#6f8cff', 1.3);
+  rim.position.set(-6, 5, -8);
+  scene.add(rim);
+  const accentL = new THREE.PointLight('#3fd0ff', 22, 12, 2);
+  accentL.position.set(-5.5, 2.2, 1);
+  const accentR = new THREE.PointLight('#8a5cff', 22, 12, 2);
+  accentR.position.set(5.5, 2.2, 1);
+  scene.add(accentL, accentR);
 
   // ── 背景星空 ──
   scene.add(makeStars());
@@ -65,9 +88,11 @@ export function createStage(canvas, { quality = 'high' } = {}) {
   const cells = WORLDS.map(w => {
     const i = w.cell;
     const center = new THREE.Vector3(((i % 3) - 1) * STEP, 0, (Math.floor(i / 3) - 1) * STEP);
-    const side = new THREE.MeshStandardMaterial({ color: '#1a1d2e', roughness: 0.7, metalness: 0.3 });
-    const top = new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 0.85, metalness: 0.05, emissive: '#ffffff', emissiveIntensity: 0.22 });
+    const side = new THREE.MeshStandardMaterial({ color: '#20253a', roughness: 0.35, metalness: 0.75 });
+    const top = new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 0.45, metalness: 0.15, emissive: '#ffffff', emissiveIntensity: 0.1 });
     const tile = new THREE.Mesh(new THREE.BoxGeometry(CELL, 0.25, CELL), [side, side, top, side, side, side]);
+    tile.castShadow = true;
+    tile.receiveShadow = true;
     tile.position.copy(center);
     tile.userData.cell = i;
     board.add(tile);
@@ -77,7 +102,7 @@ export function createStage(canvas, { quality = 'high' } = {}) {
     frame.position.y = TILE_TOP + 0.02;
     tile.add(frame);
 
-    return { center, tile, top, frame, color: w.color, lift: 0, liftTarget: 0, piece: null, standee: null };
+    return { center, tile, top, frame, color: w.color, lift: 0, liftTarget: 0, dip: 0, dipVel: 0, piece: null, standee: null };
   });
 
   const pieces = new THREE.Group();
@@ -92,12 +117,19 @@ export function createStage(canvas, { quality = 'high' } = {}) {
   composer.addPass(new RenderPass(scene, camera));
   const bloom = new UnrealBloomPass(new THREE.Vector2(256, 256), 0.7, 0.5, 0.82);
   composer.addPass(bloom);
+  // 衝擊後製：色差 + 放射模糊 + 閃白 + 暗角，命中時瞬間拉高再衰減
+  const impactPass = new ShaderPass(IMPACT_SHADER);
+  composer.addPass(impactPass);
   composer.addPass(new OutputPass());
+  const fxPost = { aberration: 0, zoom: 0, flash: 0 };
   let useComposer = true;
 
   function setQuality(q) {
     quality = q === 'low' ? 'low' : 'high';
     useComposer = quality === 'high';
+    renderer.shadowMap.enabled = quality === 'high';
+    key.castShadow = quality === 'high';
+    scene.traverse(o => { if (o.material) [].concat(o.material).forEach(m => { m.needsUpdate = true; }); });
     renderer.setPixelRatio(quality === 'high' ? Math.min(window.devicePixelRatio || 1, 2) : 1);
     resize();
   }
@@ -110,9 +142,11 @@ export function createStage(canvas, { quality = 'high' } = {}) {
     composer.setSize(w, h);
     camera.aspect = w / h;
     // 直式螢幕（手機）拉遠一點，整個棋盤才放得下
-    camera.fov = w < h ? 60 : 45;
+    baseFov = w < h ? 60 : 45;
+    camera.fov = baseFov;
     camera.updateProjectionMatrix();
   }
+  let baseFov = 45;
   window.addEventListener('resize', resize);
 
   // ── 每幀 ──
@@ -139,17 +173,28 @@ export function createStage(canvas, { quality = 'high' } = {}) {
     return p;
   }
 
-  renderer.setAnimationLoop(() => {
+  // 每一幀：可以由 setAnimationLoop 驅動，也可以由開發工具手動呼叫 tick()
+  const frame = () => {
     const dt = Math.min(clock.getDelta(), 0.1);
+    // 命中停頓（hit-stop）：特效幾乎停住一瞬間，鏡頭和介面照常
+    const fxDt = performance.now() < hitStopUntil ? dt * 0.04 : dt;
     for (const t of [...tweens]) {
       const k = Math.min(1, (performance.now() - t.start) / t.ms);
       try { t.fn(k); } catch (e) { console.error(e); }
       if (k >= 1) { tweens.delete(t); t.resolve(); }
     }
     for (const cb of [...frameCbs]) {
-      try { cb(dt); } catch (e) { console.error(e); }
+      try { cb(fxDt); } catch (e) { console.error(e); }
     }
     animateCells(dt);
+    // 衝擊後製與鏡頭縮放衰減
+    const decay = Math.exp(-dt * 7);
+    fxPost.aberration *= decay; fxPost.zoom *= decay; fxPost.flash *= Math.exp(-dt * 10);
+    impactPass.uniforms.uAberration.value = fxPost.aberration;
+    impactPass.uniforms.uZoom.value = fxPost.zoom;
+    impactPass.uniforms.uFlash.value = fxPost.flash;
+    fovKick *= Math.exp(-dt * 6);
+    if (Math.abs(camera.fov - (baseFov + fovKick)) > 0.01) { camera.fov = baseFov + fovKick; camera.updateProjectionMatrix(); }
     controls.enabled = !camTween; // 鏡頭動畫結束就自動還給玩家操作
     if (!camTween) controls.update();
     let shook = false;
@@ -166,7 +211,32 @@ export function createStage(canvas, { quality = 'high' } = {}) {
     }
     if (useComposer) composer.render(); else renderer.render(scene, camera);
     if (shook) camera.position.sub(shakeOff);
-  });
+  };
+  renderer.setAnimationLoop(frame);
+
+  let hitStopUntil = 0;
+  let fovKick = 0;
+
+  /**
+   * 打擊感：命中停頓 + 鏡頭震動 + 鏡頭往內衝 + 色差 / 放射模糊 / 閃白 + 格子下沉回彈（周圍的格子依距離跟著震）。
+   * power 約 0.5（小）～ 1.5（大招）。
+   */
+  function impact(cell, power = 1) {
+    hitStopUntil = Math.max(hitStopUntil, performance.now() + 50 + 45 * power);
+    shake(0.16 * power, 260 + 140 * power);
+    fovKick = Math.min(fovKick, -2.6 * power);
+    fxPost.aberration = Math.max(fxPost.aberration, 0.006 * power);
+    fxPost.zoom = Math.max(fxPost.zoom, 0.045 * power);
+    fxPost.flash = Math.max(fxPost.flash, 0.18 * power);
+    if (cell >= 0 && cells[cell]) {
+      const src = cells[cell].center;
+      for (const c of cells) {
+        const d = c.center.distanceTo(src);
+        const kick = (c === cells[cell] ? 3.2 : 1.4 / (1 + d)) * power;
+        setTimeout(() => { c.dipVel -= kick; }, d * 35);
+      }
+    }
+  }
 
   let shakeAmp = 0, shakeT = 0, shakeDur = 1;
   const shakeOff = new THREE.Vector3();
@@ -182,10 +252,13 @@ export function createStage(canvas, { quality = 'high' } = {}) {
     const t = (performance.now() - now) / 1000;
     for (const c of cells) {
       c.lift += (c.liftTarget - c.lift) * Math.min(1, dt * 12);
-      c.tile.position.y = c.center.y + c.lift;
+      // 受擊下沉後彈回（彈簧）
+      c.dipVel += (-180 * c.dip - 14 * c.dipVel) * dt;
+      c.dip += c.dipVel * dt;
+      c.tile.position.y = c.center.y + c.lift + c.dip;
       if (c.piece) {
         const p = c.piece;
-        p.position.y = c.lift + p.userData.baseY + Math.sin(t * 2.2 + c.center.x) * 0.06;
+        p.position.y = c.lift + c.dip + p.userData.baseY + Math.sin(t * 2.2 + c.center.x) * 0.06;
         p.rotation.y += dt * p.userData.spin;
       }
       if (c.standee) c.standee.position.y = c.lift + c.standee.userData.baseY;
@@ -422,6 +495,9 @@ export function createStage(canvas, { quality = 'high' } = {}) {
     for (const child of [...fxLayer.children]) { fxLayer.remove(child); dispose(child); }
     for (const fn of cancelHooks) { try { fn(); } catch (e) { console.error(e); } }
     shakeAmp = 0;
+    hitStopUntil = 0;
+    fovKick = 0;
+    fxPost.aberration = fxPost.zoom = fxPost.flash = 0;
   }
 
   function clearBoard() {
@@ -441,12 +517,49 @@ export function createStage(canvas, { quality = 'high' } = {}) {
     scene, camera, renderer, controls, fxLayer,
     cellCenter: i => cells[i].center.clone(),
     pickCell, setHover, setWorldImage, placePiece, placeStandee, clearBoard, takeCell, cellsOf, resetEnvironment, cancelFx, onCancelFx,
-    onFrame, tween, flyTo, orbitLine, restoreView, snapBack, resetView, setQuality, shake,
+    onFrame, tween, flyTo,
+    /** 開發用：停掉自動更新，改成手動推進（瀏覽器暫停動畫時截圖用）。 */
+    manualTick(on) { renderer.setAnimationLoop(on ? null : frame); return frame; }, orbitLine, restoreView, snapBack, resetView, setQuality, shake, impact,
     get quality() { return quality; },
     get fxGeneration() { return fxGeneration; },
     get isCinematic() { return !!camTween; },
   };
 }
+
+// ───────────────────────── 衝擊後製 ─────────────────────────
+
+const IMPACT_SHADER = {
+  uniforms: {
+    tDiffuse: { value: null },
+    uAberration: { value: 0 },
+    uZoom: { value: 0 },
+    uFlash: { value: 0 },
+  },
+  vertexShader: `
+    varying vec2 vUv;
+    void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
+  fragmentShader: `
+    uniform sampler2D tDiffuse;
+    uniform float uAberration, uZoom, uFlash;
+    varying vec2 vUv;
+    void main() {
+      vec2 dir = vUv - 0.5;
+      vec3 col = vec3(0.0);
+      // 放射模糊（往畫面中心衝）+ 色差（紅藍往外分開）
+      for (int i = 0; i < 6; i++) {
+        float k = 1.0 - float(i) / 6.0 * uZoom;
+        vec2 uv = 0.5 + dir * k;
+        col.r += texture2D(tDiffuse, uv + dir * uAberration).r;
+        col.g += texture2D(tDiffuse, uv).g;
+        col.b += texture2D(tDiffuse, uv - dir * uAberration).b;
+      }
+      col /= 6.0;
+      col *= 1.0 + uFlash * 2.0; // 閃光只加亮原本的顏色，不會蒙上一層灰
+      float vig = smoothstep(0.85, 0.25, length(dir));
+      col *= mix(1.0, vig, 0.35);
+      gl_FragColor = vec4(col, 1.0);
+    }`,
+};
 
 // ───────────────────────── 造型 ─────────────────────────
 
@@ -496,8 +609,9 @@ function makePlatform() {
   const size = STEP * 3 + 0.6;
   const slab = new THREE.Mesh(
     new THREE.CylinderGeometry(size * 0.74, size * 0.6, 0.9, 8, 1),
-    new THREE.MeshStandardMaterial({ color: '#141729', roughness: 0.6, metalness: 0.5 }),
+    new THREE.MeshStandardMaterial({ color: '#141729', roughness: 0.3, metalness: 0.85 }),
   );
+  slab.receiveShadow = true;
   slab.rotation.y = Math.PI / 8;
   slab.position.y = -0.62;
   g.add(slab);
@@ -538,6 +652,7 @@ function makeSlimeCrystal() {
   const core = new THREE.Mesh(new THREE.SphereGeometry(0.12, 16, 12), new THREE.MeshBasicMaterial({ color: '#bff4ff', toneMapped: false }));
   mesh.add(core);
   mesh.userData.spin = 0.6;
+  mesh.castShadow = true;
   return mesh;
 }
 
@@ -554,5 +669,6 @@ function makeSixEyesCrystal() {
   halo.rotation.x = Math.PI / 2;
   mesh.add(halo);
   mesh.userData.spin = 1.4;
+  mesh.castShadow = true;
   return mesh;
 }

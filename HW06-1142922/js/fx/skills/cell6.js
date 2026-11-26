@@ -1,6 +1,7 @@
 // 6 納茲：火竜の咆哮 —— 吸氣（粒子往口中收）→ 錐形火焰吐息席捲整格 → 火星與熱浪往上飄。
 import * as THREE from 'three';
-import { emit, ring, flash, converge, later, residue } from '../common.js';
+import { emit, ring, flash, converge, spawn, later, residue } from '../common.js';
+import { hit, energyMaterial } from '../realism.js';
 
 export default function (fx) {
   const { stage, pos, audio, mul, scale } = fx;
@@ -20,14 +21,29 @@ export default function (fx) {
     });
   }
   later(stage, 300, () => {
+    // 火柱：從口中噴向格子的流動火焰
+    const len = mouth.distanceTo(pos) + 0.6;
+    const fireMat = energyMaterial(stage, { c1: '#fff3b0', c2: '#ff2a00', scroll: 7, scale: [4, 5], fresnel: 0.9, threshold: 0.28, fadeV: 0.18 });
+    const geo = new THREE.ConeGeometry(1.1 * scale, len, 40, 1, true);
+    geo.translate(0, -len / 2, 0); // 錐尖在口、往前張開
+    const breath = new THREE.Mesh(geo, fireMat);
+    breath.position.copy(mouth);
+    breath.quaternion.setFromUnitVectors(new THREE.Vector3(0, -1, 0), dir);
+    spawn(stage, breath, {
+      life: 0.62,
+      update(k) {
+        const grow = Math.min(1, k / 0.18);
+        breath.scale.set(0.3 + 0.7 * grow, grow, 0.3 + 0.7 * grow);
+        fireMat.uniforms.uOpacity.value = k < 0.7 ? 1 : 1 - (k - 0.7) / 0.3;
+      },
+    });
     audio.sfx('fire');
-    flash(stage, mouth, { color: '#ff7a2a', intensity: 35, life: 0.5 });
+    flash(stage, mouth, { color: '#ff7a2a', intensity: 12, life: 0.5 });
   });
 
   later(stage, 560, () => {
     ring(stage, pos, { color: fire, radius: 2.2 * scale, life: 0.55, width: 0.22 });
-    flash(stage, pos, { color: '#ff5a1f', intensity: 55 * scale, life: 0.5 });
-    stage.shake(0.2 * scale, 450);
+    hit(fx, { power: 1.1, color: '#ff6a1f', smokeColor: '#2a2220', debrisColor: '#3a2a22' });
     audio.sfx('explode', { pitch: 1.1, gain: 0.7 });
   });
 
