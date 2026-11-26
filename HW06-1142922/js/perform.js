@@ -7,6 +7,7 @@ import { palette, ring } from './fx/common.js';
 import { SKILLS, makeFx } from './fx/skills/index.js';
 import * as leaders from './fx/leaders.js';
 import * as cutin from './ui/cutin.js';
+import { playDomainClash, clearClash } from './ui/clash.js';
 
 export function createPerformer({ stage, audio, heroImages, leaderImages, getSettings }) {
   let current = null;
@@ -89,7 +90,7 @@ export function createPerformer({ stage, audio, heroImages, leaderImages, getSet
     const myEpoch = epoch;
     const faction = result.winnerFaction;
     // 跳過結局相關演出：cut-in、鏡頭、還在跑的特效全部收掉
-    const skipCleanup = () => { cutin.clearAll(); stage.snapBack(); stage.cancelFx(); };
+    const skipCleanup = () => { cutin.clearAll(); clearClash(); stage.snapBack(); stage.cancelFx(); };
 
     if (faction && result.line) {
       const plan = planUnison(result.line);
@@ -128,7 +129,12 @@ export function createPerformer({ stage, audio, heroImages, leaderImages, getSet
     // 結局演出
     const ending = planEnding(result);
     const tl = new Timeline();
-    tl.add(0, () => {
+    const endAt = ending.beats.find(b => b.kind === 'ending').at;
+    // 五條悟輸的時候：先播領域對決（無量空処 vs 伏魔御廚子，五條悟這邊被打碎）
+    if (ending.beats.some(b => b.kind === 'clash')) {
+      tl.add(0, () => { audio.duck(false); playDomainClash({ sfx: (name, opts) => audio.sfx(name, opts) }); });
+    }
+    tl.add(endAt, () => {
       audio.duck(false);
       if (faction) {
         const f = FACTIONS[faction];
@@ -139,8 +145,8 @@ export function createPerformer({ stage, audio, heroImages, leaderImages, getSet
         leaders.drawClash(stage, audio);
       }
     });
-    if (!faction) tl.add(650, () => cutin.showLeaderCutin({ faction: 'gojo', image: leaderImages.gojo, titleJa: FACTIONS.gojo.unisonJa, reading: FACTIONS.gojo.unisonReading, lifeMs: 700 }));
-    if (!faction) tl.add(3200, () => cutin.showBanner('勢均力敵', 'sukuna', { lifeMs: 1500 }));
+    if (!faction) tl.add(endAt + 650, () => cutin.showLeaderCutin({ faction: 'gojo', image: leaderImages.gojo, titleJa: FACTIONS.gojo.unisonJa, reading: FACTIONS.gojo.unisonReading, lifeMs: 700 }));
+    if (!faction) tl.add(endAt + 3200, () => cutin.showBanner('勢均力敵', 'sukuna', { lifeMs: 1500 }));
     tl.setDuration(ending.duration);
     tl.onSkip(skipCleanup);
     const r = await run(tl);
@@ -157,6 +163,7 @@ export function createPerformer({ stage, audio, heroImages, leaderImages, getSet
       epoch++;
       if (current) current.cancel();
       cutin.clearAll();
+      clearClash();
       stage.snapBack();
       audio.duck(false);
     },

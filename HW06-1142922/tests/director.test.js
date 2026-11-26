@@ -52,6 +52,11 @@ test('合體技與結局', () => {
   assert.deepEqual(u.beats.find(b => b.kind === 'unisonLeader'), { at: 3800, kind: 'unisonLeader' });
   const e = planEnding({ winner: 0, winnerFaction: null, line: null });
   assert.deepEqual(e, { duration: 8000, beats: [{ at: 0, kind: 'ending' }] });
+  // 宿儺贏（玩家的五條悟輸）：先 3.8 秒領域對決，再接勝利演出
+  const lose = planEnding({ winner: 1, winnerFaction: 'sukuna', line: [0, 1, 2] });
+  assert.deepEqual(lose, { duration: 11800, beats: [{ at: 0, kind: 'clash' }, { at: 3800, kind: 'ending' }] });
+  // 五條悟贏：沒有對決
+  assert.equal(planEnding({ winner: 0, winnerFaction: 'gojo', line: [0, 1, 2] }).beats.length, 1);
 });
 
 test('音量：音樂 = 音效 × 0.4，避讓再 × 0.35', () => {

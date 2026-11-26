@@ -47,6 +47,12 @@ export function planUnison(line) {
   };
 }
 
-export function planEnding(_result) {
+/** 對決畫面的長度：宿儺贏（五條悟輸）時，結局前先播領域對決。 */
+export const CLASH_MS = 3800;
+
+export function planEnding(result) {
+  if (result && result.winnerFaction === 'sukuna') {
+    return { duration: CLASH_MS + DUR.ending, beats: [{ at: 0, kind: 'clash' }, { at: CLASH_MS, kind: 'ending' }] };
+  }
   return { duration: DUR.ending, beats: [{ at: 0, kind: 'ending' }] };
 }
