@@ -17,6 +17,11 @@ export const MUSIC = {
 
 /** 已經放進 repo 的素材清單；不在清單裡的就不去請求，直接用替代品（避免一堆 404）。 */
 export const AVAILABLE = new Set([
+  IMAGES.leader.rimuru,
+  IMAGES.leader.gojo,
+  ...IMAGES.hero,
+  ...IMAGES.world,
+  // 音樂：處理好的歌放進 assets/music 後，在這裡加上 MUSIC.cell[n]
 ]);
 
 export const isAvailable = path => !!path && AVAILABLE.has(path);
