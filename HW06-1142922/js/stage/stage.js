@@ -334,25 +334,15 @@ export function createStage(canvas, { quality = 'high' } = {}) {
   }
 
   /**
-   * 主角加入陣營：立繪只跳出來約 1 秒就淡出（不擋視線），
-   * 之後格子上留一枚平貼在地板上的圓形頭像徽章。
+   * 主角加入陣營：立繪只跳出來約 1 秒就淡出（不擋視線）；
+   * 之後格子上只留陣營棋子，不放頭像（使用者要求）。
    */
   function placeStandee(i, faction, image) {
     const c = cells[i];
     if (c.standee) return c.standee;
-    const color = FACTIONS[faction].primary;
     const group = new THREE.Group();
     group.position.set(c.center.x - 0.25, 0, c.center.z - 0.2);
     group.userData.baseY = TILE_TOP + 0.02;
-
-    // 平貼的圓形頭像
-    const badge = new THREE.Mesh(
-      new THREE.CircleGeometry(0.62, 48),
-      new THREE.MeshBasicMaterial({ map: textureFrom(badgeCanvas(image, color)), transparent: true, opacity: 0, depthWrite: false }),
-    );
-    badge.rotation.x = -Math.PI / 2;
-    badge.position.y = 0.012;
-    group.add(badge);
 
     // 暫時跳出來的立繪
     const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: textureFrom(image), transparent: true, depthWrite: false, opacity: 0 }));
@@ -365,7 +355,6 @@ export function createStage(canvas, { quality = 'high' } = {}) {
     pieces.add(group);
     c.standee = group;
     tween(1500, k => {
-      badge.material.opacity = Math.min(1, k * 4);
       // 0–15% 升起淡入、15–70% 停留、70–100% 下沉淡出
       const show = k < 0.15 ? k / 0.15 : k < 0.7 ? 1 : 1 - (k - 0.7) / 0.3;
       sprite.material.opacity = show;
@@ -467,30 +456,6 @@ function textureFrom(image) {
   tex.anisotropy = 4;
   tex.needsUpdate = true;
   return tex;
-}
-
-/** 圓形頭像：取立繪上半部（臉）裁成圓形，外圈是陣營色。 */
-function badgeCanvas(image, color) {
-  const size = 256;
-  const c = document.createElement('canvas');
-  c.width = c.height = size;
-  const g = c.getContext('2d');
-  const iw = image.width || size, ih = image.height || size;
-  const side = Math.min(iw, ih * 0.8); // 取上方的正方形，臉通常在上半部
-  g.save();
-  g.beginPath();
-  g.arc(size / 2, size / 2, size / 2 - 10, 0, Math.PI * 2);
-  g.clip();
-  g.fillStyle = '#0b0d1c';
-  g.fillRect(0, 0, size, size);
-  g.drawImage(image, (iw - side) / 2, 0, side, side, 0, 0, size, size);
-  g.restore();
-  g.lineWidth = 12;
-  g.strokeStyle = color;
-  g.beginPath();
-  g.arc(size / 2, size / 2, size / 2 - 8, 0, Math.PI * 2);
-  g.stroke();
-  return c;
 }
 
 function backOut(k) {
