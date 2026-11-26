@@ -9,6 +9,7 @@ import { loadSettings, saveSettings } from './core/settings.js';
 import { IMAGES } from './assets/manifest.js';
 import { loadImage } from './assets/loader.js';
 import { createScreens } from './ui/screens.js';
+import { createAudio } from './audio/engine.js';
 
 const CPU_THINK_MS = 400;
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -35,6 +36,11 @@ async function boot() {
   let settings = loadSettings(storage);
   const stats = createStats(storage);
   const stage = createStage(canvas, { quality: settings.quality });
+  const audio = createAudio(settings);
+
+  // 任何按鈕都有點擊音效；第一次點擊時解鎖音訊（瀏覽器規定）
+  document.addEventListener('pointerdown', () => { audio.unlock(); }, { capture: true });
+  document.addEventListener('click', e => { if (e.target.closest('button')) audio.sfx('click'); }, { capture: true });
 
   // ── 素材 ──
   const [heroImages, worldImages, leaderList] = await Promise.all([
@@ -56,7 +62,7 @@ async function boot() {
   };
 
   const screens = createScreens(document.getElementById('ui'), {
-    onStart: () => goMode(),
+    onStart: async () => { await audio.unlock(); audio.music.playTitle(); goMode(); },
     onMode: mode => { app.mode = mode; goFaction(); },
     onFaction: f => { app.faction = f; startMatch(); },
     onBackToMode: () => goMode(),
@@ -70,6 +76,7 @@ async function boot() {
   function applySettings(s) {
     settings = s;
     saveSettings(storage, s);
+    audio.setSettings(s);
     if (stage.quality !== s.quality) stage.setQuality(s.quality);
   }
 
@@ -95,6 +102,7 @@ async function boot() {
     stage.controls.autoRotateSpeed = 0.6;
     screens.hideResult();
     screens.showTitle();
+    audio.music.playTitle();
   }
 
   function goMode() {
@@ -117,9 +125,12 @@ async function boot() {
     stage.resetView();
     screens.hideResult();
     screens.showHud(hudState());
+    audio.music.playTitle();
   }
 
   async function show(event) {
+    audio.sfx('place');
+    audio.music.playCell(event.index);
     stage.placePiece(event.index, event.faction);
     stage.placeStandee(event.index, event.faction, heroImages[event.index]);
   }
@@ -144,6 +155,7 @@ async function boot() {
       sub = '雙方不分勝負。';
     }
     screens.updateHud(hudState());
+    audio.music.playEnding({ win: 'victory', lose: 'defeat', draw: 'draw' }[tone]);
     screens.showResult({ banner, sub, tone, faction: r.winnerFaction });
   }
 
@@ -182,11 +194,14 @@ async function boot() {
     if (cell >= 0 && app.match.board[cell] === EMPTY) humanMove(cell);
   });
 
+  let lastHover = -1;
   canvas.addEventListener('pointermove', e => {
     if (e.pointerType !== 'mouse' || app.screen !== 'playing') { hint.hidden = true; return; }
     const cell = stage.pickCell(e.clientX, e.clientY);
     const free = cell >= 0 && app.match.board[cell] === EMPTY && canPlay();
-    stage.setHover(free ? cell : -1);
+    if (free && cell !== lastHover) audio.sfx('hover');
+    lastHover = free ? cell : -1;
+    stage.setHover(lastHover);
     canvas.style.cursor = free ? 'pointer' : 'grab';
     if (cell >= 0) {
       const w = WORLDS[cell];
@@ -203,5 +218,5 @@ async function boot() {
   goTitle();
 
   // 開發 / 驗證用
-  window.__hw06 = { stage, app, stats, get settings() { return settings; } };
+  window.__hw06 = { stage, app, stats, audio, get settings() { return settings; } };
 }
