@@ -31,7 +31,7 @@
 .btn:hover { transform: translateY(-2px); background: rgba(40, 48, 96, 0.9); }
 
 .btn.primary {
-  background: linear-gradient(90deg, var(--rimuru-2), var(--gojo-2));
+  background: linear-gradient(90deg, var(--sukuna-2), var(--gojo-2));
   border-color: transparent;
   box-shadow: 0 0 24px rgba(138, 92, 255, 0.45);
 }
@@ -94,7 +94,7 @@ h2 { margin: 0; font-size: clamp(24px, 5vw, 36px); letter-spacing: 0.15em; }
   mask-image: linear-gradient(to bottom, #000 70%, transparent);
 }
 
-.leader.rimuru canvas { filter: drop-shadow(0 0 24px rgba(63, 208, 255, 0.6)); }
+.leader.sukuna canvas { filter: drop-shadow(0 0 24px rgba(255, 51, 71, 0.6)); }
 .leader.gojo canvas { filter: drop-shadow(0 0 24px rgba(138, 92, 255, 0.6)); }
 
 .leader figcaption {
@@ -117,7 +117,7 @@ h2 { margin: 0; font-size: clamp(24px, 5vw, 36px); letter-spacing: 0.15em; }
   letter-spacing: 0.08em;
   line-height: 1.1;
   white-space: nowrap;
-  background: linear-gradient(100deg, #bff4ff 0%, var(--rimuru) 30%, #ffffff 50%, var(--gojo-2) 72%, #e2d6ff 100%);
+  background: linear-gradient(100deg, #bff4ff 0%, var(--sukuna) 30%, #ffffff 50%, var(--gojo-2) 72%, #e2d6ff 100%);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
@@ -163,8 +163,8 @@ h2 { margin: 0; font-size: clamp(24px, 5vw, 36px); letter-spacing: 0.15em; }
 
 .card.faction { width: min(260px, 42vw); padding: 14px; }
 .card.faction img, .card.faction canvas { width: 100%; aspect-ratio: 4 / 5; object-fit: cover; border-radius: 12px; display: block; }
-.card.faction.rimuru { border-color: var(--rimuru); }
-.card.faction.rimuru:hover { box-shadow: 0 0 36px rgba(63, 208, 255, 0.6); }
+.card.faction.sukuna { border-color: var(--sukuna); }
+.card.faction.sukuna:hover { box-shadow: 0 0 36px rgba(255, 51, 71, 0.6); }
 .card.faction.gojo { border-color: var(--gojo-2); }
 .card.faction.gojo:hover { box-shadow: 0 0 36px rgba(138, 92, 255, 0.65); }
 
@@ -200,7 +200,7 @@ h2 { margin: 0; font-size: clamp(24px, 5vw, 36px); letter-spacing: 0.15em; }
 .side b { display: block; font-size: 17px; }
 .side small { color: var(--muted); font-size: 12px; }
 .side.active { opacity: 1; transform: scale(1.04); }
-.side.rimuru.active { box-shadow: 0 0 22px rgba(63, 208, 255, 0.6); border-color: var(--rimuru); }
+.side.sukuna.active { box-shadow: 0 0 22px rgba(255, 51, 71, 0.6); border-color: var(--sukuna); }
 .side.gojo.active { box-shadow: 0 0 22px rgba(138, 92, 255, 0.65); border-color: var(--gojo-2); }
 
 .center { text-align: center; }
@@ -294,11 +294,11 @@ h2 { margin: 0; font-size: clamp(24px, 5vw, 36px); letter-spacing: 0.15em; }
 .panel input[type=range] { flex: 1; }
 .panel .btn { align-self: center; }
 .panel .list { font-size: 14px; line-height: 1.6; color: var(--ink); }
-.panel .list a { color: var(--rimuru); word-break: break-all; }
+.panel .list a { color: var(--sukuna); word-break: break-all; }
 
 .seg { display: flex; border: 1px solid var(--line); border-radius: 999px; overflow: hidden; }
 .seg button { border: 0; background: transparent; color: var(--muted); font: 700 15px var(--ui-font); padding: 6px 16px; cursor: pointer; }
-.seg button.on { background: linear-gradient(90deg, var(--rimuru-2), var(--gojo-2)); color: #fff; }
+.seg button.on { background: linear-gradient(90deg, var(--sukuna-2), var(--gojo-2)); color: #fff; }
 
 /* ───────────── cut-in ───────────── */
 
@@ -420,10 +420,33 @@ h2 { margin: 0; font-size: clamp(24px, 5vw, 36px); letter-spacing: 0.15em; }
   background: none;
   border: 0;
   cursor: pointer;
-  text-shadow: 0 0 24px var(--rimuru), 0 0 48px var(--gojo-2), 4px 4px 0 #000;
+  text-shadow: 0 0 24px var(--sukuna), 0 0 48px var(--gojo-2), 4px 4px 0 #000;
   animation: start-pulse 1.8s ease-in-out infinite;
   transition: transform 0.15s;
 }
 .start-big:hover { transform: scale(1.06); }
-@keyframes start-pulse { 50% { opacity: 0.75; text-shadow: 0 0 40px var(--rimuru), 0 0 80px var(--gojo-2), 4px 4px 0 #000; } }
+@keyframes start-pulse { 50% { opacity: 0.75; text-shadow: 0 0 40px var(--sukuna), 0 0 80px var(--gojo-2), 4px 4px 0 #000; } }
 .credits-link { position: absolute; bottom: 16px; }
+
+/* 登入動畫（按下 START 之後） */
+.login { position: fixed; inset: 0; z-index: 60; background: #000; cursor: pointer; transition: opacity 0.4s; }
+.login canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+.login.out { opacity: 0; pointer-events: none; }
+.login-text { position: absolute; inset: 0; display: grid; place-items: center; pointer-events: none; }
+.login-text .ls {
+  font-family: var(--jp-font); font-size: clamp(36px, 8vw, 96px); letter-spacing: 0.25em; color: #fff;
+  text-shadow: 0 0 18px #8fd8ff, 0 0 40px #4a7bff;
+  clip-path: inset(0 100% 0 0); animation: ls-type 0.5s steps(10) 0.1s forwards;
+}
+.login.tunnel .login-text .ls { animation: ls-type 0.5s steps(10) 0.1s forwards, ls-out 0.5s ease-in 0.6s forwards; }
+@keyframes ls-type { to { clip-path: inset(0 0 0 0); } }
+@keyframes ls-out { to { opacity: 0; transform: scale(2.4); filter: blur(6px); } }
+.login-flash { position: absolute; inset: 0; background: #fff; opacity: 0; pointer-events: none; transition: opacity 0.25s; }
+.login.flash .login-flash { opacity: 1; }
+.login.welcome .login-flash { opacity: 0; transition: opacity 0.9s; }
+.login-sub {
+  position: absolute; inset: 0; display: grid; place-content: center; text-align: center; pointer-events: none;
+  font-family: var(--jp-font); font-size: clamp(22px, 4vw, 44px); color: #0b1430; letter-spacing: 0.12em; opacity: 0; transition: opacity 0.4s;
+}
+.login-sub small { font-size: 0.45em; letter-spacing: 0.4em; color: #4a5a8a; }
+.login.welcome .login-sub { opacity: 1; color: #fff; text-shadow: 0 0 20px #8fd8ff; }

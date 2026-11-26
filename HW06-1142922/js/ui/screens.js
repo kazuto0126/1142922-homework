@@ -62,7 +62,7 @@ export function createScreens(root, handlers, { leaderImages }) {
       <h2>${title}</h2>
       <p class="note">${note}</p>
       <div class="cards">
-        ${['rimuru', 'gojo'].map(f => `
+        ${['sukuna', 'gojo'].map(f => `
           <button class="card faction ${f}" data-faction="${f}">
             <div data-l2d="${f}" data-sway="0.7"></div>
             <b>${FACTIONS[f].nameZh}</b>
@@ -81,7 +81,7 @@ export function createScreens(root, handlers, { leaderImages }) {
     const el = layer('hud');
     el.innerHTML = `
       <div class="hud-bar">
-        <div class="side rimuru"><img alt="" src="${esc(leaderSrc('rimuru'))}"><div><b>利姆路</b><small data-role="rimuru"></small></div></div>
+        <div class="side sukuna"><img alt="" src="${esc(leaderSrc('sukuna'))}"><div><b>宿儺</b><small data-role="sukuna"></small></div></div>
         <div class="center"><div class="turn"></div><div class="stats"></div></div>
         <div class="side gojo"><div><b>五條悟</b><small data-role="gojo"></small></div><img alt="" src="${esc(leaderSrc('gojo'))}"></div>
       </div>
@@ -98,7 +98,7 @@ export function createScreens(root, handlers, { leaderImages }) {
 
   function updateHud({ mode, factionOf, turnFaction, stats, thinking, over }) {
     const el = layer('hud');
-    for (const f of ['rimuru', 'gojo']) {
+    for (const f of ['sukuna', 'gojo']) {
       const mark = factionOf[1] === f ? 1 : 2;
       const who = mode === 'cpu' ? (mark === 1 ? '你・先手' : '電腦・後手') : (mark === 1 ? '玩家 1・先手' : '玩家 2・後手');
       el.querySelector(`[data-role=${f}]`).textContent = who;
@@ -119,12 +119,10 @@ export function createScreens(root, handlers, { leaderImages }) {
         <div class="result-sub">${esc(sub)}</div>
         <div class="result-actions">
           <button class="btn primary" data-act="again">再來一局</button>
-          <button class="btn" data-act="swap">換陣營</button>
           <button class="btn" data-act="home">回標題</button>
         </div>
       </div>`;
     el.querySelector('[data-act=again]').onclick = h('onAgain');
-    el.querySelector('[data-act=swap]').onclick = h('onSwap');
     el.querySelector('[data-act=home]').onclick = h('onHome');
     layers.result.hidden = false;
   }

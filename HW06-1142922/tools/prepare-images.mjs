@@ -14,6 +14,7 @@ fs.mkdirSync(out, { recursive: true });
 const PORTRAITS = {
   'leader-rimuru': [62, 8, 240, 300],
   'leader-gojo': [78, 0, 560, 700],
+  'leader-sukuna': [200, 0, 558, 698],
   'hero-0': [82, 100, 600, 750],
   'hero-1': [320, 38, 800, 1000],
   'hero-2': [58, 0, 460, 575],

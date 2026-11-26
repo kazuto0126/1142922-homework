@@ -1,13 +1,14 @@
 // 把一手棋排成「拍點表」：什麼時間點要做哪一段演出。
 // 拍點表是純資料，實際畫面由 js/perform.js 對應到特效。
 
-export const DUR = { normal: 1500, key: 3000, short: 700, unison: 5000, ending: 7000 };
+// 使用者要求技能持續久一點（原本 1.5 / 3 / 5 / 7 秒）
+export const DUR = { normal: 2200, key: 3800, short: 900, unison: 6500, ending: 8000 };
 
 const NORMAL = [
   { at: 0, kind: 'entrance' },
-  { at: 250, kind: 'cutin' },
-  { at: 500, kind: 'skill' },
-  { at: 1300, kind: 'settle' },
+  { at: 300, kind: 'cutin' },
+  { at: 700, kind: 'skill' },
+  { at: 2000, kind: 'settle' },
 ];
 
 const KEY = [
@@ -15,14 +16,14 @@ const KEY = [
   { at: 0, kind: 'keyCam' },
   { at: 300, kind: 'keyBanner' },
   { at: 700, kind: 'cutin' },
-  { at: 1200, kind: 'skill' },
-  { at: 2700, kind: 'settle' },
+  { at: 1300, kind: 'skill' },
+  { at: 3500, kind: 'settle' },
 ];
 
 const SHORT = [
   { at: 0, kind: 'entrance' },
   { at: 150, kind: 'skill' },
-  { at: 550, kind: 'settle' },
+  { at: 750, kind: 'settle' },
 ];
 
 const copy = beats => beats.map(b => ({ ...b }));
@@ -40,8 +41,8 @@ export function planUnison(line) {
   return {
     duration: DUR.unison,
     beats: [
-      ...line.map((cell, i) => ({ at: i * 900, kind: 'unisonHero', cell })),
-      { at: 2800, kind: 'unisonLeader' },
+      ...line.map((cell, i) => ({ at: i * 1200, kind: 'unisonHero', cell })),
+      { at: 3800, kind: 'unisonLeader' },
     ],
   };
 }

@@ -6,7 +6,7 @@ const systems = new WeakMap(); // stage → 粒子系統
 
 export function palette(faction) {
   const f = FACTIONS[faction];
-  return { primary: new THREE.Color(f.primary), secondary: new THREE.Color(f.secondary), accent: new THREE.Color(faction === 'rimuru' ? '#b8f6ff' : '#c9a8ff') };
+  return { primary: new THREE.Color(f.primary), secondary: new THREE.Color(f.secondary), accent: new THREE.Color(faction === 'sukuna' ? '#ffb0b8' : '#c9a8ff') };
 }
 
 /** 招式本色混 30% 陣營主色。 */
@@ -356,11 +356,11 @@ export function arcs(stage, center, { count = 5, radius = 1.0, color = '#9ff', l
   }
 }
 
-/** 陣營殘留：利姆路是落下的水滴，五條悟是藍紫色的扭曲波紋。 */
+/** 陣營殘留：宿儺是落下的水滴，五條悟是藍紫色的扭曲波紋。 */
 export function residue(fx, { delay = 0 } = {}) {
   const { stage, pos, pal, faction } = fx;
   later(stage, delay * 1000, () => {
-    if (faction === 'rimuru') {
+    if (faction === 'sukuna') {
       emit(stage, { pos: pos.clone().setY(pos.y + 1.8), count: 30 * fx.mul, color: pal.primary, color2: pal.accent, shape: 'sphere', speed: 1.5, gravity: -7, drag: 0.3, life: 0.9, size: 0.22, radius: 0.9 });
     } else {
       ring(stage, pos, { color: pal.secondary, radius: 2.2 * fx.scale, life: 0.55, width: 0.06, y: 0.35 });

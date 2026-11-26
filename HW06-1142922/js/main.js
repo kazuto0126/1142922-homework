@@ -11,12 +11,14 @@ import { loadImage } from './assets/loader.js';
 import { tileCanvas, loadEmblems } from './assets/emblems.js';
 import { createScreens } from './ui/screens.js';
 import { createAudio } from './audio/engine.js';
+import { playLogin } from './ui/login.js';
+import { SFX } from './assets/manifest.js';
 import { createPerformer } from './perform.js';
 import { liveParticles } from './fx/common.js';
 
 const CPU_THINK_MS = 400;
+const SAO_CELL = 7; // 刀劍神域那一格的歌，當作標題與選單的背景音樂
 const sleep = ms => new Promise(r => setTimeout(r, ms));
-const other = f => (f === 'rimuru' ? 'gojo' : 'rimuru');
 
 function safeStorage() {
   try { return window.localStorage; } catch { return null; }
@@ -48,9 +50,9 @@ async function boot() {
   // ── 素材 ──
   const [heroImages, leaderList] = await Promise.all([
     Promise.all(WORLDS.map(w => loadImage(IMAGES.hero[w.cell], { kind: 'hero', label: w.heroZh, sub: w.work, color: w.color }))),
-    Promise.all(['rimuru', 'gojo'].map(f => loadImage(IMAGES.leader[f], { kind: 'leader', label: FACTIONS[f].nameZh, sub: FACTIONS[f].nameJa, color: FACTIONS[f].secondary }))),
+    Promise.all(['sukuna', 'gojo'].map(f => loadImage(IMAGES.leader[f], { kind: 'leader', label: FACTIONS[f].nameZh, sub: FACTIONS[f].nameJa, color: FACTIONS[f].secondary }))),
   ]);
-  const leaderImages = { rimuru: leaderList[0], gojo: leaderList[1] };
+  const leaderImages = { sukuna: leaderList[0], gojo: leaderList[1] };
   const emblems = await loadEmblems();
   WORLDS.forEach(w => stage.setWorldImage(w.cell, tileCanvas(w, emblems[w.cell])));
 
@@ -58,20 +60,24 @@ async function boot() {
   const app = {
     screen: 'title',
     mode: 'cpu',
-    faction: 'rimuru', // 先手（玩家）的陣營
+    faction: 'gojo', // 先手（玩家）固定是五條悟，對手是宿儺（使用者要求，不用選陣營）
     match: null,
     busy: false,
     thinking: false,
   };
 
   const screens = createScreens(document.getElementById('ui'), {
-    onStart: async () => { await audio.unlock(); audio.music.playTitle(); goMode(); },
-    onMode: mode => { app.mode = mode; goFaction(); },
-    onFaction: f => { app.faction = f; startMatch(); },
-    onBackToMode: () => goMode(),
+    onStart: async () => {
+      await audio.unlock();
+      audio.music.playCell(SAO_CELL); // 從按下 START 開始就是刀劍神域的歌
+      audio.sfx('charge', { pitch: 0.6 });
+      await playLogin({ onVoice: () => audio.clip(SFX.linkStart, 1) });
+      audio.sfx('whoosh', { pitch: 0.8 });
+      goMode();
+    },
+    onMode: mode => { app.mode = mode; startMatch(); },
     onHome: () => goTitle(),
     onAgain: () => startMatch(),
-    onSwap: () => { app.faction = other(app.faction); startMatch(); },
     onOpenSettings: () => screens.openSettings(settings),
     onSettings: s => applySettings(s),
   }, { leaderImages });
@@ -106,17 +112,12 @@ async function boot() {
     stage.controls.autoRotateSpeed = 0.6;
     screens.hideResult();
     screens.showTitle();
-    audio.music.playTitle();
+    audio.music.playCell(SAO_CELL);
   }
 
   function goMode() {
     app.screen = 'mode';
     screens.showMode();
-  }
-
-  function goFaction() {
-    app.screen = 'faction';
-    screens.showFaction(app.mode);
   }
 
   function startMatch() {
@@ -130,7 +131,7 @@ async function boot() {
     stage.resetView();
     screens.hideResult();
     screens.showHud(hudState());
-    audio.music.playTitle();
+    audio.music.playCell(SAO_CELL);
   }
 
   const performer = createPerformer({ stage, audio, heroImages, leaderImages, getSettings: () => settings });

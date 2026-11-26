@@ -200,14 +200,14 @@ const TRACKS = {
       for (const [at, m, len] of mel) tone(ctx, d, { t: t0 + at * b, dur: len * b, freq: midi(m), type: 'triangle', gain: 0.09, attack: 0.2 });
     },
   }),
-  // 和局：兩段旋律互相拉鋸（利姆路：明亮三角波；五條悟：方波），100 BPM，戰鼓
+  // 和局：兩段旋律互相拉鋸（宿儺：明亮三角波；五條悟：方波），100 BPM，戰鼓
   draw: (ctx, d) => loop(ctx, d, {
     bpm: 100, loopBeats: 16,
     schedule(t0, b) {
-      const rimuru = [[0, 74], [0.5, 76], [1, 79], [1.5, 81], [2, 79, 1.5]];
+      const sukuna = [[0, 74], [0.5, 76], [1, 79], [1.5, 81], [2, 79, 1.5]];
       const gojo = [[4, 69], [4.5, 68], [5, 65], [5.5, 64], [6, 65, 1.5]];
       for (const off of [0, 8]) {
-        for (const [at, m, len = 0.5] of rimuru) pluck(ctx, d, t0 + (at + off) * b, m, len * b, 0.17, 'triangle');
+        for (const [at, m, len = 0.5] of sukuna) pluck(ctx, d, t0 + (at + off) * b, m, len * b, 0.17, 'triangle');
         for (const [at, m, len = 0.5] of gojo) pluck(ctx, d, t0 + (at + off) * b, m, len * b, 0.09, 'square');
       }
       // 最後兩拍兩邊同時出現，衝突的音程

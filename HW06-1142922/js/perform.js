@@ -135,12 +135,12 @@ export function createPerformer({ stage, audio, heroImages, leaderImages, getSet
         cutin.showLeaderCutin({ faction, image: leaderImages[faction], titleJa: f.victoryJa, reading: f.victoryReading, lifeMs: 1300 });
         leaders.victory(stage, faction, audio);
       } else {
-        cutin.showLeaderCutin({ faction: 'rimuru', image: leaderImages.rimuru, titleJa: FACTIONS.rimuru.unisonJa, reading: FACTIONS.rimuru.unisonReading, lifeMs: 700 });
+        cutin.showLeaderCutin({ faction: 'sukuna', image: leaderImages.sukuna, titleJa: FACTIONS.sukuna.unisonJa, reading: FACTIONS.sukuna.unisonReading, lifeMs: 700 });
         leaders.drawClash(stage, audio);
       }
     });
     if (!faction) tl.add(650, () => cutin.showLeaderCutin({ faction: 'gojo', image: leaderImages.gojo, titleJa: FACTIONS.gojo.unisonJa, reading: FACTIONS.gojo.unisonReading, lifeMs: 700 }));
-    if (!faction) tl.add(3200, () => cutin.showBanner('勢均力敵', 'rimuru', { lifeMs: 1500 }));
+    if (!faction) tl.add(3200, () => cutin.showBanner('勢均力敵', 'sukuna', { lifeMs: 1500 }));
     tl.setDuration(ending.duration);
     tl.onSkip(skipCleanup);
     const r = await run(tl);

@@ -3,11 +3,11 @@ import { EMPTY, X, O, winner, winningLine, isGameOver } from './rules.js';
 import { chooseMove } from './ai.js';
 import { classifyMove, tierOf } from './analysis.js';
 
-const otherFaction = f => (f === 'rimuru' ? 'gojo' : 'rimuru');
+const otherFaction = f => (f === 'sukuna' ? 'gojo' : 'sukuna');
 
 export function createMatch({ mode, firstFaction }) {
   if (mode !== 'cpu' && mode !== 'pvp') throw new Error(`未知的模式：${mode}`);
-  if (firstFaction !== 'rimuru' && firstFaction !== 'gojo') throw new Error(`未知的陣營：${firstFaction}`);
+  if (firstFaction !== 'sukuna' && firstFaction !== 'gojo') throw new Error(`未知的陣營：${firstFaction}`);
 
   const board = Array(9).fill(EMPTY);
   const factionOf = { [X]: firstFaction, [O]: otherFaction(firstFaction) };

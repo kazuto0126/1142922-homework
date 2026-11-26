@@ -15,7 +15,7 @@
 </head>
 <body>
   <canvas id="stage"></canvas>
-  <div id="bar">特效預覽：?cell=0..8&amp;faction=rimuru|gojo&amp;tier=normal|key&amp;all=1（點一下開聲音）</div>
+  <div id="bar">特效預覽：?cell=0..8&amp;faction=sukuna|gojo&amp;tier=normal|key&amp;all=1（點一下開聲音）</div>
   <script type="module">
     import { createStage } from './js/stage/stage.js';
     import { WORLDS } from './js/core/worlds.js';
@@ -28,7 +28,7 @@
     const q = new URLSearchParams(location.search);
     const all = q.has('all');
     let cell = Number(q.get('cell') ?? 4);
-    const faction = q.get('faction') === 'gojo' ? 'gojo' : 'rimuru';
+    const faction = q.get('faction') === 'gojo' ? 'gojo' : 'sukuna';
     const tier = ['normal', 'key', 'finish'].includes(q.get('tier')) ? q.get('tier') : 'normal';
     const period = Number(q.get('period') ?? 2500);
 

@@ -70,7 +70,7 @@ export function createStage(canvas, { quality = 'high' } = {}) {
   const rim = new THREE.DirectionalLight('#6f8cff', 1.3);
   rim.position.set(-6, 5, -8);
   scene.add(rim);
-  const accentL = new THREE.PointLight('#3fd0ff', 22, 12, 2);
+  const accentL = new THREE.PointLight('#ff3347', 22, 12, 2);
   accentL.position.set(-5.5, 2.2, 1);
   const accentR = new THREE.PointLight('#8a5cff', 22, 12, 2);
   accentR.position.set(5.5, 2.2, 1);
@@ -394,7 +394,7 @@ export function createStage(canvas, { quality = 'high' } = {}) {
   function placePiece(i, faction) {
     const c = cells[i];
     if (c.piece) return c.piece;
-    const piece = faction === 'rimuru' ? makeSlimeCrystal() : makeSixEyesCrystal();
+    const piece = faction === 'sukuna' ? makeCrimsonCrystal() : makeSixEyesCrystal();
     piece.userData.faction = faction;
     piece.position.set(c.center.x + 0.55, 0, c.center.z + 0.55);
     piece.userData.baseY = TILE_TOP + 0.45;
@@ -642,18 +642,23 @@ function makeStars() {
   return stars;
 }
 
-function makeSlimeCrystal() {
-  const geo = new THREE.SphereGeometry(0.32, 32, 20);
-  geo.scale(1, 0.78, 1);
-  const mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({
-    color: '#3fd0ff', emissive: '#1a6fff', emissiveIntensity: 0.9,
-    roughness: 0.15, metalness: 0.1, transparent: true, opacity: 0.88,
-  }));
-  const core = new THREE.Mesh(new THREE.SphereGeometry(0.12, 16, 12), new THREE.MeshBasicMaterial({ color: '#bff4ff', toneMapped: false }));
-  mesh.add(core);
-  mesh.userData.spin = 0.6;
-  mesh.castShadow = true;
-  return mesh;
+/** 宿儺陣營的棋子：一簇往上刺的暗紅結晶（原創造型）。 */
+function makeCrimsonCrystal() {
+  const mat = new THREE.MeshStandardMaterial({ color: '#5a0010', emissive: '#ff2040', emissiveIntensity: 0.55, roughness: 0.25, metalness: 0.5, flatShading: true });
+  const group = new THREE.Group();
+  const spikes = [[0, 0.62, 0, 0], [0.16, 0.42, 0.05, 0.35], [-0.15, 0.38, -0.04, -0.4], [0.02, 0.34, -0.16, 0.25]];
+  for (const [x, h, z, tilt] of spikes) {
+    const m = new THREE.Mesh(new THREE.ConeGeometry(0.1, h, 5), mat);
+    m.position.set(x, h / 2 - 0.2, z);
+    m.rotation.z = tilt;
+    m.castShadow = true;
+    group.add(m);
+  }
+  const core = new THREE.Mesh(new THREE.OctahedronGeometry(0.08, 0), new THREE.MeshBasicMaterial({ color: '#ff8090', toneMapped: false }));
+  core.position.y = -0.05;
+  group.add(core);
+  group.userData.spin = 0.5;
+  return group;
 }
 
 function makeSixEyesCrystal() {

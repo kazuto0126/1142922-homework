@@ -2,36 +2,17 @@
 import * as THREE from 'three';
 import { emit, ring, flash, orb, beam, spawn, glowMat, converge, later, rand, palette, easeOut, easeIn } from './common.js';
 import { flashScreen } from '../ui/cutin.js';
+import * as sukunaFx from './sukuna.js';
 
-const opponentOf = f => (f === 'rimuru' ? 'gojo' : 'rimuru');
+const opponentOf = f => (f === 'sukuna' ? 'gojo' : 'sukuna');
 
 // ───────────────────────── 入場 ─────────────────────────
 
-/** 利姆路：地面張開「暴食之王」的影子傳送門，水滴噴出。五條悟：空間扭曲，瞬間出現。 */
+/** 宿儺：「解」三道斬擊。五條悟：空間扭曲，瞬間出現。 */
 export function entrance(fx) {
   const { stage, pos, pal, faction, audio, mul } = fx;
-  if (faction === 'rimuru') {
-    const portal = new THREE.Group();
-    const hole = new THREE.Mesh(new THREE.CircleGeometry(1, 48), new THREE.MeshBasicMaterial({ color: '#06001a', transparent: true, opacity: 0.92, depthWrite: false }));
-    hole.rotation.x = -Math.PI / 2;
-    portal.add(hole);
-    const rim = new THREE.Mesh(new THREE.RingGeometry(0.92, 1.05, 64), glowMat(pal.primary, 1));
-    rim.rotation.x = -Math.PI / 2;
-    rim.position.y = 0.005;
-    portal.add(rim);
-    portal.position.copy(pos).setY(pos.y + 0.02);
-    spawn(stage, portal, {
-      life: 0.75,
-      update(k) {
-        const s = k < 0.3 ? k / 0.3 : k > 0.75 ? 1 - (k - 0.75) / 0.25 : 1;
-        portal.scale.setScalar(Math.max(0.001, s * 0.85));
-        portal.rotation.y += 0.08;
-      },
-    });
-    emit(stage, { pos: pos.clone().setY(pos.y + 0.1), count: 46 * mul, color: pal.primary, color2: pal.accent, shape: 'up', angle: 0.5, speed: 5, gravity: -11, drag: 0.4, life: 0.8, size: 0.28 });
-    orb(stage, pos.clone().setY(pos.y + 0.35), { color: pal.primary, grow: [0.05, 0.42], life: 0.35, delay: 0.12, opacity: [0.9, 0] });
-    audio.sfx('whoosh', { pitch: 0.7 });
-    audio.sfx('place', { pitch: 0.7, delay: 0.12 });
+  if (faction === 'sukuna') {
+    sukunaFx.entrance(fx);
   } else {
     for (let i = 0; i < 3; i++) {
       ring(stage, pos, { color: i === 1 ? pal.secondary : '#ffffff', radius: 1.5 - i * 0.25, life: 0.35, delay: i * 0.06, width: 0.08, y: 0.2 + i * 0.15 });
@@ -50,36 +31,6 @@ function lineInfo(stage, line) {
   const center = pts.reduce((v, p) => v.add(p), new THREE.Vector3()).multiplyScalar(1 / pts.length);
   const dir = pts[2].clone().sub(pts[0]).normalize();
   return { pts, center, dir };
-}
-
-/** 利姆路「神之怒」：天空出現光點陣列 → 無數細光束齊射在連線上。 */
-function megiddo(stage, line, audio) {
-  const { pts, center } = lineInfo(stage, line);
-  const pal = palette('rimuru');
-  const lenses = [];
-  for (let i = 0; i < 26; i++) {
-    const p = new THREE.Vector3(center.x + rand(-4, 4), rand(6.5, 8.5), center.z + rand(-4, 4));
-    lenses.push(p);
-    orb(stage, p, { color: '#dff8ff', grow: [0.05, 0.16], life: 1.6, opacity: [1, 0.6], delay: i * 0.015, segments: 10 });
-  }
-  audio.sfx('charge', { pitch: 1.6 });
-  for (let i = 0; i < 40; i++) {
-    later(stage, 450 + i * 28, () => {
-      const from = lenses[i % lenses.length];
-      const target = pts[i % 3].clone().add(new THREE.Vector3(rand(-0.8, 0.8), 0, rand(-0.8, 0.8)));
-      beam(stage, from, target, { color: i % 2 ? pal.primary : '#ffffff', width: 0.05, life: 0.28 });
-      emit(stage, { pos: target, count: 8, color: '#ffffff', color2: pal.primary, speed: 3, life: 0.3, size: 0.18 });
-      if (i % 5 === 0) audio.sfx('beam', { pitch: 1.8, gain: 0.35 });
-    });
-  }
-  later(stage, 1600, () => {
-    for (const p of pts) ring(stage, p, { color: pal.primary, radius: 2.2, life: 0.6, width: 0.2 });
-    emit(stage, { pos: center, count: 200, color: '#ffffff', color2: pal.primary, shape: 'ring', speed: 9, drag: 1.8, life: 0.8, size: 0.35 });
-    flash(stage, center, { color: '#bff4ff', intensity: 70, distance: 16 });
-    stage.shake(0.45, 500);
-    flashScreen('#bff4ff', 380);
-    audio.sfx('explode');
-  });
 }
 
 /** 五條悟 虚式「茈」：紅球、藍球從兩側飛來合體成紫球 → 沿連線貫穿。 */
@@ -144,70 +95,11 @@ function hollowPurple(stage, line, audio) {
 
 /** 合體技：依陣營放大招。回傳在演出結束時 resolve 的 Promise。 */
 export function unison(stage, line, faction, audio) {
-  if (faction === 'rimuru') megiddo(stage, line, audio);
+  if (faction === 'sukuna') sukunaFx.fuga(stage, line, audio);
   else hollowPurple(stage, line, audio);
 }
 
 // ───────────────────────── 勝利 ─────────────────────────
-
-/** 利姆路「暴食之王」：棋盤中央張開黑色漩渦，把對手的棋子全部吞掉。 */
-function beelzebuth(stage, audio) {
-  const pal = palette('rimuru');
-  const center = new THREE.Vector3(0, 2.6, 0);
-  const vortex = new THREE.Group();
-  const disc = new THREE.Mesh(new THREE.CircleGeometry(1, 64), new THREE.MeshBasicMaterial({ color: '#04000c', transparent: true, opacity: 0.95, side: THREE.DoubleSide, depthWrite: false }));
-  vortex.add(disc);
-  const rims = [0, 1, 2].map(i => {
-    const r = new THREE.Mesh(new THREE.RingGeometry(1 + i * 0.12, 1.06 + i * 0.12, 64, 1, 0, Math.PI * (1.2 + i * 0.3)), glowMat(i === 1 ? '#7a2bff' : pal.primary, 0.9));
-    vortex.add(r);
-    return r;
-  });
-  vortex.position.copy(center);
-  vortex.lookAt(stage.camera.position);
-  spawn(stage, vortex, {
-    life: 4.6,
-    update(k, _o, dt) {
-      const open = k < 0.15 ? easeOut(k / 0.15) : k > 0.85 ? 1 - easeIn((k - 0.85) / 0.15) : 1;
-      vortex.scale.setScalar(Math.max(0.001, open * 2.2));
-      rims.forEach((r, i) => { r.rotation.z += dt * (3 + i * 1.5) * (i % 2 ? -1 : 1); });
-      vortex.lookAt(stage.camera.position);
-      if (k > 0.1 && k < 0.85 && Math.random() < 0.6) {
-        converge(stage, center, { radius: 4.5, count: 14, color: pal.primary, color2: '#7a2bff', life: 0.5, size: 0.3 });
-      }
-    },
-  });
-  audio.sfx('charge', { pitch: 0.5 });
-  audio.sfx('wind', { pitch: 0.5, delay: 0.3 });
-
-  // 對手的棋子一個一個被吸進漩渦
-  const victims = stage.cellsOf('gojo');
-  victims.forEach((cell, n) => {
-    later(stage, 700 + n * 350, () => {
-      for (const obj of stage.takeCell(cell)) {
-        if (!obj) continue;
-        const from = obj.position.clone();
-        const s0 = obj.scale.clone();
-        spawn(stage, new THREE.Group(), {
-          life: 0.9,
-          update(k) {
-            const e = easeIn(k);
-            obj.position.lerpVectors(from, center, e);
-            obj.scale.copy(s0).multiplyScalar(Math.max(0.001, 1 - e));
-            obj.rotation.y += 0.3;
-          },
-        });
-      }
-      audio.sfx('whoosh', { pitch: 0.8 });
-    });
-  });
-
-  later(stage, 4300, () => {
-    flash(stage, center, { color: pal.primary, intensity: 60, distance: 16 });
-    emit(stage, { pos: center, count: 160, color: pal.primary, color2: '#ffffff', speed: 7, life: 0.8, size: 0.32 });
-    stage.shake(0.3, 400);
-    audio.sfx('explode', { pitch: 0.7 });
-  });
-}
 
 let domainTexture = null;
 function makeDomainTexture() {
@@ -263,7 +155,7 @@ function unlimitedVoid(stage, audio) {
   audio.sfx('wind', { pitch: 0.4 });
 
   // 對手的棋子：凍結 → 泛白 → 碎裂
-  const victims = stage.cellsOf('rimuru');
+  const victims = stage.cellsOf('sukuna');
   later(stage, 1200, () => {
     for (const cell of victims) {
       for (const obj of stage.takeCell(cell)) {
@@ -294,7 +186,7 @@ function unlimitedVoid(stage, audio) {
 
 /** 勝利演出（約 6 秒）。 */
 export function victory(stage, faction, audio) {
-  if (faction === 'rimuru') beelzebuth(stage, audio);
+  if (faction === 'sukuna') sukunaFx.malevolentShrine(stage, audio);
   else unlimitedVoid(stage, audio);
 }
 
@@ -308,7 +200,7 @@ export function drawClash(stage, audio) {
   const mid = new THREE.Vector3(0, 2.2, 0);
   const left = mid.clone().addScaledVector(side, -6);
   const right = mid.clone().addScaledVector(side, 6);
-  const rim = palette('rimuru'), gj = palette('gojo');
+  const rim = palette('sukuna'), gj = palette('gojo');
 
   const mk = (inner, outer) => {
     const g = new THREE.Group();

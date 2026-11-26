@@ -52,7 +52,7 @@ test('連成一線是 finish', () => {
 
 test('cpu 對局：陣營分配、輪流、電腦回合不能替電腦下', () => {
   const m = createMatch({ mode: 'cpu', firstFaction: 'gojo' });
-  assert.deepEqual(m.factionOf, { 1: 'gojo', 2: 'rimuru' });
+  assert.deepEqual(m.factionOf, { 1: 'gojo', 2: 'sukuna' });
   assert.equal(m.turn(), X);
   assert.equal(m.isCpuTurn(), false);
   const e = m.play(4);
@@ -63,7 +63,7 @@ test('cpu 對局：陣營分配、輪流、電腦回合不能替電腦下', () =
   assert.throws(() => m.play(0));
   const c = m.cpuPlay(Math.random);
   assert.equal(c.mark, O);
-  assert.equal(c.faction, 'rimuru');
+  assert.equal(c.faction, 'sukuna');
   assert.equal(m.board[c.index], O);
   assert.throws(() => m.play(4)); // 有子
   assert.throws(() => m.play(9)); // 超出範圍
@@ -71,16 +71,16 @@ test('cpu 對局：陣營分配、輪流、電腦回合不能替電腦下', () =
 });
 
 test('board 回傳的是複本', () => {
-  const m = createMatch({ mode: 'cpu', firstFaction: 'rimuru' });
+  const m = createMatch({ mode: 'cpu', firstFaction: 'sukuna' });
   m.board[0] = O;
   assert.equal(m.board[0], EMPTY);
 });
 
 test('結束後不能再下', () => {
-  const m = createMatch({ mode: 'pvp', firstFaction: 'rimuru' });
+  const m = createMatch({ mode: 'pvp', firstFaction: 'sukuna' });
   for (const i of [0, 3, 1, 4]) m.play(i);
   const e = m.play(2);
-  assert.deepEqual(e.result, { winner: X, winnerFaction: 'rimuru', line: [0, 1, 2] });
+  assert.deepEqual(e.result, { winner: X, winnerFaction: 'sukuna', line: [0, 1, 2] });
   assert.equal(m.isOver(), true);
   assert.throws(() => m.play(5));
 });
@@ -89,7 +89,7 @@ test('300 局隨機玩家對上電腦，玩家從來沒贏', () => {
   const rng = seeded(1142922);
   const outcomes = { win: 0, lose: 0, draw: 0 };
   for (let g = 0; g < 300; g++) {
-    const m = createMatch({ mode: 'cpu', firstFaction: g % 2 ? 'gojo' : 'rimuru' });
+    const m = createMatch({ mode: 'cpu', firstFaction: g % 2 ? 'gojo' : 'sukuna' });
     while (!m.isOver()) {
       if (m.isCpuTurn()) m.cpuPlay(rng);
       else {
@@ -112,8 +112,8 @@ test('雙人模式：兩邊都用 play，沒有 cpuPlay；平手結果', () => {
   for (const i of [4, 8, 1, 7, 6, 2, 5, 3]) m.play(i);
   assert.deepEqual(m.result, { winner: EMPTY, winnerFaction: null, line: null });
   assert.equal(outcomeFor(m.result, X), 'draw');
-  assert.equal(outcomeFor({ winner: O, winnerFaction: 'rimuru', line: [0, 4, 8] }, X), 'lose');
-  assert.equal(outcomeFor({ winner: O, winnerFaction: 'rimuru', line: [0, 4, 8] }, O), 'win');
+  assert.equal(outcomeFor({ winner: O, winnerFaction: 'sukuna', line: [0, 4, 8] }, X), 'lose');
+  assert.equal(outcomeFor({ winner: O, winnerFaction: 'sukuna', line: [0, 4, 8] }, O), 'win');
 });
 
 function fakeStorage() {

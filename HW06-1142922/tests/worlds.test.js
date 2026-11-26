@@ -28,7 +28,9 @@ test('只有柯南有台詞', () => {
 });
 
 test('兩個陣營', () => {
-  assert.deepEqual(Object.keys(FACTIONS).sort(), ['gojo', 'rimuru']);
-  assert.equal(FACTIONS.rimuru.unisonJa, '神之怒');
+  assert.deepEqual(Object.keys(FACTIONS).sort(), ['gojo', 'sukuna']);
+  assert.equal(FACTIONS.sukuna.nameJa, '両面宿儺');
+  assert.equal(FACTIONS.sukuna.unisonJa, '「開」');
+  assert.equal(FACTIONS.sukuna.victoryJa, '領域展開「伏魔御廚子」');
   assert.equal(FACTIONS.gojo.unisonJa, '虚式「茈」');
 });

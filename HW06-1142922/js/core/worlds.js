@@ -13,15 +13,15 @@ export const WORLDS = [
 ];
 
 export const FACTIONS = {
-  rimuru: {
-    id: 'rimuru',
-    nameZh: '利姆路',
-    nameJa: 'リムル＝テンペスト',
-    primary: '#3fd0ff',
-    secondary: '#1a6fff',
-    entranceJa: '暴食之王', entranceReading: 'ベルゼビュート',
-    unisonJa: '神之怒', unisonReading: 'メギド',
-    victoryJa: '暴食之王', victoryReading: 'ベルゼビュート',
+  sukuna: {
+    id: 'sukuna',
+    nameZh: '宿儺',
+    nameJa: '両面宿儺',
+    primary: '#ff3347',
+    secondary: '#7a0012',
+    entranceJa: '解', entranceReading: 'かい',
+    unisonJa: '「開」', unisonReading: 'フーガ',
+    victoryJa: '領域展開「伏魔御廚子」', victoryReading: 'りょういきてんかい「ふくまみづし」',
   },
   gojo: {
     id: 'gojo',

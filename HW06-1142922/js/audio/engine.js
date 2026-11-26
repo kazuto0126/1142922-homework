@@ -61,6 +61,21 @@ export function createAudio(initialSettings) {
     setSettings(s) { settings = { ...s }; applyGains(); },
     duck(on) { ducked = !!on; applyGains(); },
     sfx(name, opts) { if (ready()) synth.playSfx(ctx, sfxBus, name, opts); },
+    /** 播一段音檔（例如語音）到音效匯流排；沒有這個檔案就什麼都不做。 */
+    async clip(path, gain = 1) {
+      if (!ready() || !isAvailable(path)) return;
+      try {
+        const r = await fetch(path);
+        if (!r.ok) return;
+        const buf = await ctx.decodeAudioData(await r.arrayBuffer());
+        const src = ctx.createBufferSource();
+        const g = ctx.createGain();
+        g.gain.value = gain;
+        src.buffer = buf;
+        src.connect(g).connect(sfxBus);
+        src.start();
+      } catch { /* 語音不是必要的 */ }
+    },
     music: {
       playCell: cell => (music ? music.playCell(cell) : Promise.resolve()),
       playTitle: () => (music ? music.playTitle() : Promise.resolve()),
