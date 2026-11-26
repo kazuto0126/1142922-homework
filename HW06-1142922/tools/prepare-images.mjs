@@ -34,8 +34,8 @@ for (const [name, [x, y, w, h]] of Object.entries(PORTRAITS)) {
   console.log('ok', name);
 }
 
-// 世界圖：裁成置中的正方形，輸出 768×768
-for (let i = 0; i < 9; i++) {
+// 世界圖（目前沒用到，地板改成程式畫的標誌）：裁成置中的正方形，輸出 768×768
+for (let i = 0; i < 9 && process.env.WITH_WORLDS; i++) {
   run(['-i', path.join(src, `world-${i}.src`), '-vf', "crop='min(iw,ih)':'min(iw,ih)',scale=768:768:flags=lanczos", '-c:v', 'libwebp', '-quality', '80', path.join(out, `world-${i}.webp`)]);
   console.log('ok', `world-${i}`);
 }

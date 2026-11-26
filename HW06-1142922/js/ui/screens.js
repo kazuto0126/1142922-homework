@@ -1,6 +1,7 @@
 // 畫面：標題、選模式、選陣營、HUD、結局、設定、素材來源。介面文字一律中文。
 import { FACTIONS } from '../core/worlds.js';
 import { imageSrc } from './cutin.js';
+import { mountLive2d } from './live2d.js';
 
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
@@ -30,16 +31,17 @@ export function createScreens(root, handlers, { leaderImages }) {
     el.innerHTML = `
       <div class="tag">1142922 HW06</div>
       <div class="versus">
-        <figure class="leader rimuru"><img alt="利姆路" src="${esc(leaderSrc('rimuru'))}"><figcaption>利姆路</figcaption></figure>
+        <figure class="leader rimuru"><div data-l2d="rimuru" aria-label="利姆路"></div><figcaption>利姆路</figcaption></figure>
         <div class="logo">
           <h1>九界井字決戰</h1>
           <p class="subtitle">利姆路 <span>vs</span> 五條悟</p>
           <button class="btn primary big" data-act="start">開始</button>
           <p class="note">電腦後手，絕不會輸。你能逼出和局嗎？</p>
         </div>
-        <figure class="leader gojo"><img alt="五條悟" src="${esc(leaderSrc('gojo'))}"><figcaption>五條悟</figcaption></figure>
+        <figure class="leader gojo"><div data-l2d="gojo" aria-label="五條悟"></div><figcaption>五條悟</figcaption></figure>
       </div>
       <button class="link" data-act="credits">素材來源</button>`;
+    mountLive2d(el, leaderImages, { parallax: true });
     el.querySelector('[data-act=start]').onclick = h('onStart');
     el.querySelector('[data-act=credits]').onclick = () => openCredits();
     only('title');
@@ -71,12 +73,13 @@ export function createScreens(root, handlers, { leaderImages }) {
       <div class="cards">
         ${['rimuru', 'gojo'].map(f => `
           <button class="card faction ${f}" data-faction="${f}">
-            <img alt="" src="${esc(leaderSrc(f))}">
+            <div data-l2d="${f}" data-sway="0.7"></div>
             <b>${FACTIONS[f].nameZh}</b>
             <span class="jp">${esc(FACTIONS[f].nameJa)}</span>
           </button>`).join('')}
       </div>
       <button class="link" data-act="back">← 換模式</button>`;
+    mountLive2d(el, leaderImages);
     el.querySelectorAll('[data-faction]').forEach(b => { b.onclick = () => h('onFaction')(b.dataset.faction); });
     el.querySelector('[data-act=back]').onclick = h('onBackToMode');
     only('faction');

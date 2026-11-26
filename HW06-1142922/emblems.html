@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <title>1142922 HW06 地板標誌預覽（開發用）</title>
+  <style>body { margin: 0; background: #111; display: grid; grid-template-columns: repeat(3, 256px); gap: 8px; padding: 8px; } canvas { width: 256px; height: 256px; }</style>
+</head>
+<body>
+  <script type="module">
+    import { WORLDS } from './js/core/worlds.js';
+    import { tileCanvas } from './js/assets/emblems.js';
+    for (const w of WORLDS) document.body.appendChild(tileCanvas(w));
+  </script>
+</body>
+</html>

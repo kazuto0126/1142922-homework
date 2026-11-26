@@ -17,7 +17,7 @@ test('assets 裡的圖片和音樂都有列進可用清單（不然遊戲不會�
 });
 
 test('可用清單只包含 manifest 裡用到的路徑', () => {
-  const known = new Set([...Object.values(IMAGES.leader), ...IMAGES.hero, ...IMAGES.world, ...MUSIC.cell]);
+  const known = new Set([...Object.values(IMAGES.leader), ...IMAGES.hero, ...MUSIC.cell]);
   for (const p of AVAILABLE) assert.ok(known.has(p), p);
 });
 

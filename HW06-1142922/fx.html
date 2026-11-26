@@ -34,8 +34,8 @@
 
     const stage = createStage(document.getElementById('stage'), { quality: q.get('quality') === 'low' ? 'low' : 'high' });
     const heroImages = await Promise.all(WORLDS.map(w => loadImage(IMAGES.hero[w.cell], { kind: 'hero', label: w.heroZh, sub: w.work, color: w.color })));
-    const worldImages = await Promise.all(WORLDS.map(w => loadImage(IMAGES.world[w.cell], { kind: 'world', label: w.work, sub: w.heroZh, color: w.color })));
-    worldImages.forEach((img, i) => stage.setWorldImage(i, img));
+    const { tileCanvas } = await import('./js/assets/emblems.js');
+    WORLDS.forEach(w => stage.setWorldImage(w.cell, tileCanvas(w)));
     const audio = createAudio(DEFAULT_SETTINGS);
     document.addEventListener('pointerdown', () => audio.unlock());
     const performer = createPerformer({ stage, audio, heroImages, getSettings: () => ({ ...DEFAULT_SETTINGS }) });

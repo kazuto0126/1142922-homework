@@ -1,5 +1,6 @@
 // 2D 演出疊層：cut-in 橫條、全螢幕 cut-in、演出字樣（日文）。
 import { FACTIONS } from '../core/worlds.js';
+import { live2d } from './live2d.js';
 
 let layer = null;
 const srcCache = new WeakMap();
@@ -56,7 +57,7 @@ export function showCutin({ heroJa, moveJa, reading, line, faction, image, tier 
   el.innerHTML = `
     ${full ? '<div class="speedlines"></div><div class="bar top"></div><div class="bar bottom"></div>' : ''}
     <div class="band">
-      <div class="portrait"><img alt="" src="${esc(imageSrc(image))}"></div>
+      <div class="portrait"></div>
       <div class="words">
         <div class="hero">${esc(heroJa)}</div>
         <div class="move" style="--len:${Math.max(4, [...String(moveJa)].length)}">${esc(moveJa)}</div>
@@ -64,6 +65,7 @@ export function showCutin({ heroJa, moveJa, reading, line, faction, image, tier 
         ${line ? `<div class="line">${esc(line)}</div>` : ''}
       </div>
     </div>`;
+  if (image) el.querySelector('.portrait').appendChild(live2d(image, { sway: full ? 1.6 : 1.2 }));
   return mount(el, lifeMs ?? (full ? 1400 : 1000));
 }
 

@@ -1,22 +1,68 @@
 [
-  { "file": "assets/img/leader-rimuru.webp", "title": "利姆路（關於我轉生變成史萊姆這檔事）", "author": "Tensura Wiki（Fandom）", "source": "https://tensura.fandom.com/wiki/Rimuru_Tempest" },
-  { "file": "assets/img/leader-gojo.webp", "title": "五條悟（咒術迴戰）", "author": "Jujutsu Kaisen Wiki（Fandom）", "source": "https://jujutsu-kaisen.fandom.com/wiki/Satoru_Gojo" },
-  { "file": "assets/img/hero-0.webp", "title": "綠谷出久（我的英雄學院）", "author": "My Hero Academia Wiki（Fandom）", "source": "https://myheroacademia.fandom.com/wiki/Izuku_Midoriya" },
-  { "file": "assets/img/hero-1.webp", "title": "漩渦鳴人（火影忍者）", "author": "Narutopedia（Fandom）", "source": "https://naruto.fandom.com/wiki/Naruto_Uzumaki" },
-  { "file": "assets/img/hero-2.webp", "title": "艾連（進擊的巨人）", "author": "Attack on Titan Wiki（Fandom）", "source": "https://attackontitan.fandom.com/wiki/Eren_Yeager" },
-  { "file": "assets/img/hero-3.webp", "title": "江戶川柯南（名偵探柯南）", "author": "Detective Conan Wiki（Fandom）", "source": "https://detectiveconan.fandom.com/wiki/Conan_Edogawa" },
-  { "file": "assets/img/hero-4.webp", "title": "魯夫（航海王）", "author": "One Piece Wiki（Fandom）", "source": "https://onepiece.fandom.com/wiki/Monkey_D._Luffy" },
-  { "file": "assets/img/hero-5.webp", "title": "御坂美琴（科學超電磁砲）", "author": "Toaru Majutsu no Index Wiki（Fandom）", "source": "https://toarumajutsunoindex.fandom.com/wiki/Misaka_Mikoto" },
-  { "file": "assets/img/hero-6.webp", "title": "納茲（FAIRY TAIL）", "author": "Fairy Tail Wiki（Fandom）", "source": "https://fairytail.fandom.com/wiki/Natsu_Dragneel" },
-  { "file": "assets/img/hero-7.webp", "title": "桐谷和人（刀劍神域）", "author": "Sword Art Online Wiki（Fandom）", "source": "https://swordartonline.fandom.com/wiki/Kirito" },
-  { "file": "assets/img/hero-8.webp", "title": "黑崎一護（死神）", "author": "Bleach Wiki（Fandom）", "source": "https://bleach.fandom.com/wiki/Ichigo_Kurosaki" },
-  { "file": "assets/img/world-0.webp", "title": "雄英高中（我的英雄學院）", "author": "My Hero Academia Wiki（Fandom）", "source": "https://myheroacademia.fandom.com/wiki/U.A._High_School" },
-  { "file": "assets/img/world-1.webp", "title": "木葉村（火影忍者）", "author": "Narutopedia（Fandom）", "source": "https://naruto.fandom.com/wiki/Konohagakure" },
-  { "file": "assets/img/world-2.webp", "title": "希干希納區（進擊的巨人）", "author": "Attack on Titan Wiki（Fandom）", "source": "https://attackontitan.fandom.com/wiki/Shiganshina_District" },
-  { "file": "assets/img/world-3.webp", "title": "毛利偵探事務所（名偵探柯南）", "author": "Detective Conan Wiki（Fandom）", "source": "https://detectiveconan.fandom.com/wiki/Mouri_Detective_Agency" },
-  { "file": "assets/img/world-4.webp", "title": "千陽號（航海王）", "author": "One Piece Wiki（Fandom）", "source": "https://onepiece.fandom.com/wiki/Thousand_Sunny" },
-  { "file": "assets/img/world-5.webp", "title": "學園都市（科學超電磁砲）", "author": "Toaru Majutsu no Index Wiki（Fandom）", "source": "https://toarumajutsunoindex.fandom.com/wiki/Academy_City" },
-  { "file": "assets/img/world-6.webp", "title": "FAIRY TAIL 公會（FAIRY TAIL）", "author": "Fairy Tail Wiki（Fandom）", "source": "https://fairytail.fandom.com/wiki/Fairy_Tail_(Guild)" },
-  { "file": "assets/img/world-7.webp", "title": "艾恩葛朗特（刀劍神域）", "author": "Sword Art Online Wiki（Fandom）", "source": "https://swordartonline.fandom.com/wiki/Aincrad" },
-  { "file": "assets/img/world-8.webp", "title": "空座町（死神）", "author": "Bleach Wiki（Fandom）", "source": "https://bleach.fandom.com/wiki/Karakura_Town" }
+  {
+    "file": "assets/img/leader-rimuru.webp",
+    "title": "利姆路（關於我轉生變成史萊姆這檔事）",
+    "author": "Tensura Wiki（Fandom）",
+    "source": "https://tensura.fandom.com/wiki/Rimuru_Tempest"
+  },
+  {
+    "file": "assets/img/leader-gojo.webp",
+    "title": "五條悟（咒術迴戰）",
+    "author": "Jujutsu Kaisen Wiki（Fandom）",
+    "source": "https://jujutsu-kaisen.fandom.com/wiki/Satoru_Gojo"
+  },
+  {
+    "file": "assets/img/hero-0.webp",
+    "title": "綠谷出久（我的英雄學院）",
+    "author": "My Hero Academia Wiki（Fandom）",
+    "source": "https://myheroacademia.fandom.com/wiki/Izuku_Midoriya"
+  },
+  {
+    "file": "assets/img/hero-1.webp",
+    "title": "漩渦鳴人（火影忍者）",
+    "author": "Narutopedia（Fandom）",
+    "source": "https://naruto.fandom.com/wiki/Naruto_Uzumaki"
+  },
+  {
+    "file": "assets/img/hero-2.webp",
+    "title": "艾連（進擊的巨人）",
+    "author": "Attack on Titan Wiki（Fandom）",
+    "source": "https://attackontitan.fandom.com/wiki/Eren_Yeager"
+  },
+  {
+    "file": "assets/img/hero-3.webp",
+    "title": "江戶川柯南（名偵探柯南）",
+    "author": "Detective Conan Wiki（Fandom）",
+    "source": "https://detectiveconan.fandom.com/wiki/Conan_Edogawa"
+  },
+  {
+    "file": "assets/img/hero-4.webp",
+    "title": "魯夫（航海王）",
+    "author": "One Piece Wiki（Fandom）",
+    "source": "https://onepiece.fandom.com/wiki/Monkey_D._Luffy"
+  },
+  {
+    "file": "assets/img/hero-5.webp",
+    "title": "御坂美琴（科學超電磁砲）",
+    "author": "Toaru Majutsu no Index Wiki（Fandom）",
+    "source": "https://toarumajutsunoindex.fandom.com/wiki/Misaka_Mikoto"
+  },
+  {
+    "file": "assets/img/hero-6.webp",
+    "title": "納茲（FAIRY TAIL）",
+    "author": "Fairy Tail Wiki（Fandom）",
+    "source": "https://fairytail.fandom.com/wiki/Natsu_Dragneel"
+  },
+  {
+    "file": "assets/img/hero-7.webp",
+    "title": "桐谷和人（刀劍神域）",
+    "author": "Sword Art Online Wiki（Fandom）",
+    "source": "https://swordartonline.fandom.com/wiki/Kirito"
+  },
+  {
+    "file": "assets/img/hero-8.webp",
+    "title": "黑崎一護（死神）",
+    "author": "Bleach Wiki（Fandom）",
+    "source": "https://bleach.fandom.com/wiki/Ichigo_Kurosaki"
+  }
 ]

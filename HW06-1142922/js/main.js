@@ -8,6 +8,7 @@ import { createStats } from './core/stats.js';
 import { loadSettings, saveSettings } from './core/settings.js';
 import { IMAGES } from './assets/manifest.js';
 import { loadImage } from './assets/loader.js';
+import { tileCanvas } from './assets/emblems.js';
 import { createScreens } from './ui/screens.js';
 import { createAudio } from './audio/engine.js';
 import { createPerformer } from './perform.js';
@@ -44,13 +45,12 @@ async function boot() {
   document.addEventListener('click', e => { if (e.target.closest('button')) audio.sfx('click'); }, { capture: true });
 
   // ── 素材 ──
-  const [heroImages, worldImages, leaderList] = await Promise.all([
+  const [heroImages, leaderList] = await Promise.all([
     Promise.all(WORLDS.map(w => loadImage(IMAGES.hero[w.cell], { kind: 'hero', label: w.heroZh, sub: w.work, color: w.color }))),
-    Promise.all(WORLDS.map(w => loadImage(IMAGES.world[w.cell], { kind: 'world', label: w.work, sub: w.heroZh, color: w.color }))),
     Promise.all(['rimuru', 'gojo'].map(f => loadImage(IMAGES.leader[f], { kind: 'leader', label: FACTIONS[f].nameZh, sub: FACTIONS[f].nameJa, color: FACTIONS[f].secondary }))),
   ]);
   const leaderImages = { rimuru: leaderList[0], gojo: leaderList[1] };
-  worldImages.forEach((img, i) => stage.setWorldImage(i, img));
+  WORLDS.forEach(w => stage.setWorldImage(w.cell, tileCanvas(w)));
 
   // ── 狀態 ──
   const app = {

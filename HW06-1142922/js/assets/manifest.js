@@ -6,7 +6,7 @@ export const IMAGES = {
     gojo: 'assets/img/leader-gojo.webp',
   },
   hero: Array.from({ length: 9 }, (_, i) => `assets/img/hero-${i}.webp`),
-  world: Array.from({ length: 9 }, (_, i) => `assets/img/world-${i}.webp`),
+  // 地板不用圖片：由 js/assets/emblems.js 畫各作品的標誌與代表色
 };
 
 export const MUSIC = {
@@ -20,8 +20,8 @@ export const AVAILABLE = new Set([
   IMAGES.leader.rimuru,
   IMAGES.leader.gojo,
   ...IMAGES.hero,
-  ...IMAGES.world,
-  // 音樂：處理好的歌放進 assets/music 後，在這裡加上 MUSIC.cell[n]
+  // 每格的主題曲（tools/prepare-music.mjs 產生：副歌 44 秒、去人聲、-18 LUFS）
+  ...MUSIC.cell,
 ]);
 
 export const isAvailable = path => !!path && AVAILABLE.has(path);
