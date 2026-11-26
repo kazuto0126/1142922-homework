@@ -28,20 +28,11 @@ export function createScreens(root, handlers, { leaderImages }) {
   // ── 標題 ──
   function showTitle() {
     const el = layer('title');
+    // 封面只有一個大大的 START（使用者要求）；角落留學號作業標籤和素材來源
     el.innerHTML = `
       <div class="tag">1142922 HW06</div>
-      <div class="versus">
-        <figure class="leader rimuru"><div data-l2d="rimuru" aria-label="利姆路"></div><figcaption>利姆路</figcaption></figure>
-        <div class="logo">
-          <h1>九界井字決戰</h1>
-          <p class="subtitle">利姆路 <span>vs</span> 五條悟</p>
-          <button class="btn primary big" data-act="start">開始</button>
-          <p class="note">電腦後手，絕不會輸。你能逼出和局嗎？</p>
-        </div>
-        <figure class="leader gojo"><div data-l2d="gojo" aria-label="五條悟"></div><figcaption>五條悟</figcaption></figure>
-      </div>
-      <button class="link" data-act="credits">素材來源</button>`;
-    mountLive2d(el, leaderImages, { parallax: true });
+      <button class="start-big" data-act="start">START</button>
+      <button class="link credits-link" data-act="credits">素材來源</button>`;
     el.querySelector('[data-act=start]').onclick = h('onStart');
     el.querySelector('[data-act=credits]').onclick = () => openCredits();
     only('title');

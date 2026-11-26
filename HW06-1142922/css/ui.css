@@ -409,3 +409,21 @@ h2 { margin: 0; font-size: clamp(24px, 5vw, 36px); letter-spacing: 0.15em; }
 
 .screen-flash { position: absolute; inset: 0; animation: flash-out ease-out both; mix-blend-mode: screen; }
 @keyframes flash-out { from { opacity: 0.9; } to { opacity: 0; } }
+
+/* 封面：一個大 START */
+.start-big {
+  font-family: var(--jp-font);
+  font-size: clamp(64px, 16vw, 200px);
+  letter-spacing: 0.12em;
+  padding: 0.1em 0.4em;
+  color: #fff;
+  background: none;
+  border: 0;
+  cursor: pointer;
+  text-shadow: 0 0 24px var(--rimuru), 0 0 48px var(--gojo-2), 4px 4px 0 #000;
+  animation: start-pulse 1.8s ease-in-out infinite;
+  transition: transform 0.15s;
+}
+.start-big:hover { transform: scale(1.06); }
+@keyframes start-pulse { 50% { opacity: 0.75; text-shadow: 0 0 40px var(--rimuru), 0 0 80px var(--gojo-2), 4px 4px 0 #000; } }
+.credits-link { position: absolute; bottom: 16px; }
