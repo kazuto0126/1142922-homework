@@ -7,16 +7,16 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { WORLDS, FACTIONS } from '../core/worlds.js';
-import { makeSky, makeDust, makeArenaRings, makeShards, makeUnderside, makeSeams, makeLightShafts, bevelTileGeometry } from './scenery.js';
+import { makeSky, makeDust, makeArenaRings, makeShards, makeUnderside, makeSeams, makeLightShafts, bevelTileGeometry, makeClaimOverlay, makeBeamPillar } from './scenery.js';
 import { makeStudioEnv, createMirror, brushedTexture, stoneRoughness, makeCrimsonCrystal, makeSixEyesCrystal, setCrystalQuality } from './look.js';
 
-export const CELL = 2;
+export const CELL = 2.4; // 格子加大 20%（使用者要求棋盤大一點）
 export const GAP = 0.15;
 export const STEP = CELL + GAP;
 const TILE_TOP = 0.125;
 const DEG = Math.PI / 180;
 const FRAME_GLOW = 1.8; // 邊框發光線的 HDR 亮度（超過泛光門檻才會發光）
-const DEFAULT_VIEW = { polar: 50 * DEG, azimuth: 0, distance: 12.5, target: new THREE.Vector3(0, 0, 0.4) };
+const DEFAULT_VIEW = { polar: 50 * DEG, azimuth: 0, distance: 13, target: new THREE.Vector3(0, 0, 0.5) };
 
 export function supportsWebGL() {
   if (new URLSearchParams(location.search).has('nowebgl')) return false;
@@ -55,8 +55,8 @@ export function createStage(canvas, { quality = 'high' } = {}) {
   controls.rotateSpeed = 0.6;
   controls.minPolarAngle = 20 * DEG;
   controls.maxPolarAngle = 75 * DEG;
-  controls.minDistance = 6;
-  controls.maxDistance = 16;
+  controls.minDistance = 7;
+  controls.maxDistance = 19;
 
   // ── 燈光 ──
   // 主光（暖白、投影）+ 冷色輪廓光 + 兩側陣營色補光
@@ -65,7 +65,7 @@ export function createStage(canvas, { quality = 'high' } = {}) {
   key.position.set(5, 11, 7);
   key.castShadow = true;
   key.shadow.mapSize.set(2048, 2048);
-  Object.assign(key.shadow.camera, { left: -6, right: 6, top: 6, bottom: -6, near: 1, far: 30 });
+  Object.assign(key.shadow.camera, { left: -7.5, right: 7.5, top: 7.5, bottom: -7.5, near: 1, far: 32 });
   key.shadow.bias = -0.0004;
   key.shadow.normalBias = 0.02;
   key.shadow.radius = 4;
@@ -137,7 +137,7 @@ export function createStage(canvas, { quality = 'high' } = {}) {
     frame.position.y = TILE_TOP + 0.02;
     tile.add(frame);
 
-    return { center, tile, top, frame, color: w.color, lift: 0, liftTarget: 0, dip: 0, dipVel: 0, piece: null, standee: null };
+    return { center, tile, top, frame, color: w.color, lift: 0, liftTarget: 0, dip: 0, dipVel: 0, piece: null, standee: null, claim: null };
   });
 
   const pieces = new THREE.Group();
@@ -208,7 +208,7 @@ export function createStage(canvas, { quality = 'high' } = {}) {
     mirror.setSize(w * renderer.getPixelRatio(), h * renderer.getPixelRatio());
     camera.aspect = w / h;
     // 直式螢幕（手機）拉遠一點，整個棋盤才放得下
-    baseFov = w < h ? 60 : 45;
+    baseFov = w < h ? 66 : 45;
     camera.fov = baseFov;
     camera.updateProjectionMatrix();
   }
@@ -348,8 +348,9 @@ export function createStage(canvas, { quality = 'high' } = {}) {
       c.tile.position.y = c.center.y + c.lift + c.dip;
       if (c.piece) {
         const p = c.piece;
-        p.position.y = c.lift + c.dip + p.userData.baseY + Math.sin(t * 2.2 + c.center.x) * 0.06;
+        p.position.y = c.lift + c.dip + p.userData.baseY + (p.userData.drop || 0) + Math.sin(t * 2.2 + c.center.x) * 0.06;
         p.rotation.y += dt * p.userData.spin;
+        if (p.userData.update) p.userData.update(t);
       }
       if (c.standee) c.standee.position.y = c.lift + c.standee.userData.baseY;
     }
@@ -402,7 +403,7 @@ export function createStage(canvas, { quality = 'high' } = {}) {
   function flyTo(i, ms = 700) {
     saveView();
     const target = cells[i].center.clone();
-    const pos = viewToPosition({ polar: 52 * DEG, azimuth: currentAzimuth(), distance: 6.5, target });
+    const pos = viewToPosition({ polar: 52 * DEG, azimuth: currentAzimuth(), distance: 7.4, target });
     return moveCamera(pos, target, ms);
   }
 
@@ -414,7 +415,7 @@ export function createStage(canvas, { quality = 'high' } = {}) {
     const startTarget = controls.target.clone();
     return cameraTween(ms, k => {
       const e = ease(k);
-      const orbit = viewToPosition({ polar: 58 * DEG, azimuth: a0 + e * Math.PI * 0.9, distance: 9, target });
+      const orbit = viewToPosition({ polar: 58 * DEG, azimuth: a0 + e * Math.PI * 0.9, distance: 10.5, target });
       const blend = Math.min(1, k * 4); // 前 25% 從原本的位置滑進軌道
       camera.position.lerpVectors(startPos, orbit, blend);
       controls.target.lerpVectors(startTarget, target, blend);
@@ -487,14 +488,83 @@ export function createStage(canvas, { quality = 'high' } = {}) {
     const piece = faction === 'sukuna' ? makeCrimsonCrystal() : makeSixEyesCrystal();
     setCrystalQuality(piece, quality === 'high');
     piece.userData.faction = faction;
-    piece.position.set(c.center.x + 0.55, 0, c.center.z + 0.55);
-    piece.userData.baseY = TILE_TOP + 0.45;
+    piece.position.set(c.center.x + 0.62, 0, c.center.z + 0.62);
+    piece.userData.baseY = TILE_TOP + 0.55;
     pieces.add(piece);
     c.piece = piece;
-    setFrameColor(i, FACTIONS[faction].primary);
-    piece.scale.setScalar(0.001);
-    tween(380, k => piece.scale.setScalar(Math.max(0.001, backOut(k))));
+    claimCell(i, faction, piece);
     return piece;
+  }
+
+  /**
+   * 佔領格子的演出：天上打下一道光柱 → 棋子沿著光柱落下 → 落地的衝擊波、閃光、格子下沉
+   * → 陣營的領域紋路從中心擴散到整格（之後一直留著、緩慢呼吸）→ 邊框換成陣營色。
+   */
+  function claimCell(i, faction, piece) {
+    const c = cells[i];
+    const color = FACTIONS[faction].primary;
+    const glowColor = faction === 'sukuna' ? '#ff3347' : '#9fc4ff';
+    const finalScale = piece.scale.x;
+    // 光柱
+    const pillar = makeBeamPillar(uTime, glowColor);
+    pillar.position.x = piece.position.x;
+    pillar.position.z = piece.position.z;
+    pillar.position.y += TILE_TOP;
+    fxLayer.add(pillar);
+    tween(900, k => {
+      pillar.material.uniforms.uAlpha.value = k < 0.15 ? k / 0.15 : 1 - Math.pow((k - 0.15) / 0.85, 1.5);
+      pillar.scale.set(1 - k * 0.6, 1, 1 - k * 0.6);
+      if (k >= 1 && pillar.parent) { pillar.parent.remove(pillar); dispose(pillar); }
+    });
+    // 棋子落下（加速），落地時壓扁再彈回
+    piece.userData.drop = 4;
+    piece.scale.setScalar(finalScale);
+    tween(300, k => {
+      piece.userData.drop = 4 * (1 - k * k);
+      if (k >= 1) landed();
+    });
+    function landed() {
+      piece.userData.drop = 0;
+      tween(320, k => {
+        const sq = Math.sin(k * Math.PI) * Math.exp(-k * 2.5) * 0.35;
+        piece.scale.set(finalScale * (1 + sq), finalScale * (1 - sq), finalScale * (1 + sq));
+      });
+      impact(i, 0.5);
+      // 閃光
+      const slot = borrowLight();
+      slot.light.color.set(glowColor);
+      slot.light.distance = 9;
+      slot.light.position.set(c.center.x, 1.2, c.center.z);
+      tween(500, k => { if (slot.owns()) slot.light.intensity = k >= 1 ? 0 : 40 * Math.pow(1 - k, 2); });
+      // 貼地的衝擊環
+      const ring = new THREE.Mesh(
+        new THREE.RingGeometry(0.85, 1, 64),
+        new THREE.MeshBasicMaterial({ color: new THREE.Color(glowColor).multiplyScalar(2), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false }),
+      );
+      ring.rotation.x = -Math.PI / 2;
+      ring.position.set(piece.position.x, TILE_TOP + 0.03, piece.position.z);
+      fxLayer.add(ring);
+      tween(550, k => {
+        ring.scale.setScalar(0.1 + (1 - Math.pow(1 - k, 3)) * CELL * 0.6);
+        ring.material.opacity = 1 - k;
+        if (k >= 1 && ring.parent) { ring.parent.remove(ring); dispose(ring); }
+      });
+      // 領域紋路從中心擴散
+      if (c.claim) { c.tile.remove(c.claim); dispose(c.claim); }
+      const claim = makeClaimOverlay(uTime, CELL * 0.97, faction);
+      claim.position.y = TILE_TOP + 0.004;
+      c.tile.add(claim);
+      c.claim = claim;
+      tween(700, k => { claim.material.uniforms.uProgress.value = 1 - Math.pow(1 - k, 2); });
+      setFrameColor(i, color);
+    }
+  }
+
+  function removeClaim(c) {
+    if (!c.claim) return;
+    c.tile.remove(c.claim);
+    dispose(c.claim);
+    c.claim = null;
   }
 
   /**
@@ -553,6 +623,7 @@ export function createStage(canvas, { quality = 'high' } = {}) {
     }
     c.piece = null;
     c.standee = null;
+    removeClaim(c);
     setFrameColor(i, c.color);
     return out;
   }
@@ -598,6 +669,7 @@ export function createStage(canvas, { quality = 'high' } = {}) {
     for (const c of cells) {
       if (c.piece) { pieces.remove(c.piece); dispose(c.piece); c.piece = null; }
       if (c.standee) { pieces.remove(c.standee); dispose(c.standee); c.standee = null; }
+      removeClaim(c);
       setFrameColor(c.tile.userData.cell, c.color);
     }
     resetEnvironment();
@@ -613,7 +685,7 @@ export function createStage(canvas, { quality = 'high' } = {}) {
   keepAlive.position.set(0, -400, 0);
   scene.add(keepAlive);
   async function warmup(objects = []) {
-    for (const o of [makeCrimsonCrystal(), makeSixEyesCrystal(), ...objects]) {
+    for (const o of [makeCrimsonCrystal(), makeSixEyesCrystal(), makeClaimOverlay(uTime, 1, 'gojo'), makeBeamPillar(uTime, '#ffffff'), ...objects]) {
       o.traverse(m => { m.frustumCulled = false; });
       keepAlive.add(o);
     }

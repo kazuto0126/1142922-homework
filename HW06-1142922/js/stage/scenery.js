@@ -26,6 +26,7 @@ export function makeSky(uTime) {
         gl_Position = p.xyww; // 永遠在最遠處
       }`,
     fragmentShader: `
+      float spow(float x, float y) { return pow(max(x, 1e-4), y); }
       uniform float uTime, uFade;
       varying vec3 vDir;
       ${NOISE}
@@ -45,7 +46,7 @@ export function makeSky(uTime) {
         vec3 neb = mix(red, blue, smoothstep(0.1, 0.5, side));
         neb = mix(neb, purple, smoothstep(0.5, 0.9, side));
         col += neb * cloud * 0.55;
-        col += neb * pow(cloud, 3.0) * 0.6; // 星雲最亮的核心
+        col += neb * spow(cloud, 3.0) * 0.6; // 星雲最亮的核心
         // 星星：每一格最多一顆，會閃
         vec3 sp = d * 220.0;
         vec3 cell = floor(sp);
@@ -102,6 +103,7 @@ export function makeDust(uTime, count = 420) {
         gl_Position = projectionMatrix * mv;
       }`,
     fragmentShader: `
+      float spow(float x, float y) { return pow(max(x, 1e-4), y); }
       varying float vA; varying float vS;
       void main() {
         float d = length(gl_PointCoord - 0.5);
@@ -279,13 +281,14 @@ export function makeUnderside(uTime, size) {
     uniforms: { map: { value: tex }, uColor: { value: new THREE.Color(color).multiplyScalar(k) }, uTime, uPhase: { value: Math.random() * 6 } },
     vertexShader: `varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
     fragmentShader: `
+      float spow(float x, float y) { return pow(max(x, 1e-4), y); }
       uniform sampler2D map; uniform vec3 uColor; uniform float uTime, uPhase; varying vec2 vUv;
       void main() {
         float a = texture2D(map, vUv).a;
         float pulse = 0.7 + 0.3 * sin(uTime * 1.2 + uPhase);
         // 一道光沿著圓陣繞圈掃過
         float ang = atan(vUv.y - 0.5, vUv.x - 0.5);
-        float sweep = pow(0.5 + 0.5 * sin(ang - uTime * 0.9 + uPhase), 12.0);
+        float sweep = spow(0.5 + 0.5 * sin(ang - uTime * 0.9 + uPhase), 12.0);
         gl_FragColor = vec4(uColor * (pulse + sweep * 1.5), a * (0.55 + sweep * 0.45));
       }`,
     transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide,
@@ -317,10 +320,11 @@ export function makeSeams(uTime, step, y) {
     uniforms: { uTime, uColor: { value: new THREE.Color('#9fb4ff') } },
     vertexShader: `varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
     fragmentShader: `
+      float spow(float x, float y) { return pow(max(x, 1e-4), y); }
       uniform float uTime; uniform vec3 uColor; varying vec2 vUv;
       void main() {
         float across = 1.0 - abs(vUv.y - 0.5) * 2.0;
-        float flow = pow(0.5 + 0.5 * sin(vUv.x * 18.0 - uTime * 2.4), 8.0);
+        float flow = spow(0.5 + 0.5 * sin(vUv.x * 18.0 - uTime * 2.4), 8.0);
         float ends = smoothstep(0.0, 0.06, vUv.x) * smoothstep(1.0, 0.94, vUv.x);
         float k = across * ends * (0.35 + flow * 1.6);
         gl_FragColor = vec4(uColor * k * 1.5, 1.0);
@@ -355,12 +359,13 @@ export function makeLightShafts(uTime) {
         gl_Position = projectionMatrix * mv;
       }`,
     fragmentShader: `
+      float spow(float x, float y) { return pow(max(x, 1e-4), y); }
       uniform float uTime; varying vec2 vUv; varying float vFace;
       ${NOISE}
       void main() {
         float n = vnoise(vec3(vUv.x * 14.0, vUv.y * 2.0 - uTime * 0.15, uTime * 0.05));
         float fadeY = smoothstep(0.0, 0.4, vUv.y) * smoothstep(1.0, 0.55, vUv.y);
-        float a = fadeY * pow(vFace, 3.0) * (0.35 + 0.65 * n) * 0.022;
+        float a = fadeY * spow(vFace, 3.0) * (0.35 + 0.65 * n) * 0.022;
         gl_FragColor = vec4(vec3(0.85, 0.9, 1.0) * a, 1.0);
       }`,
     transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, fog: false,
@@ -401,4 +406,94 @@ export function bevelTileGeometry(cell, height) {
     uv.setXY(v, (uv.getX(v) + h) / cell, (uv.getY(v) + h) / cell);
   }
   return geo; // 法線用 ExtrudeGeometry 本身算好的（斜邊才會是平滑的）
+}
+
+// ───────────────────────── 佔領格子 ─────────────────────────
+
+/**
+ * 佔領的領域紋路（蓋在格子表面）：從中心往外擴散。
+ * 五條悟（kind 0）：同心的漣漪 + 六角格；宿儺（kind 1）：交錯的紅色斬痕、會閃。
+ * uProgress 0→1 是擴散進度；之後保持在 1，紋路繼續緩慢呼吸，一眼看得出這格是誰的。
+ */
+export function makeClaimOverlay(uTime, size, faction) {
+  const gojo = faction !== 'sukuna';
+  const mat = new THREE.ShaderMaterial({
+    uniforms: {
+      uTime,
+      uProgress: { value: 0 },
+      uAlpha: { value: 1 },
+      uKind: { value: gojo ? 0 : 1 },
+      uColor: { value: new THREE.Color(gojo ? '#9fc4ff' : '#ff3347') },
+      uColor2: { value: new THREE.Color(gojo ? '#7a4dff' : '#7a0012') },
+    },
+    vertexShader: `varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
+    fragmentShader: `
+      float spow(float x, float y) { return pow(max(x, 1e-4), y); }
+      uniform float uTime, uProgress, uAlpha, uKind; uniform vec3 uColor, uColor2;
+      varying vec2 vUv;
+      float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+      float line(float x, float w) { return smoothstep(w, 0.0, abs(fract(x) - 0.5)); }
+      void main() {
+        vec2 p = vUv - 0.5;
+        float d = length(p) * 1.4142;
+        float front = uProgress * 1.15;
+        float inside = smoothstep(front, front - 0.1, d);
+        float wave = smoothstep(0.1, 0.0, abs(d - front)) * (1.0 - smoothstep(0.85, 1.0, uProgress));
+        float pat;
+        if (uKind < 0.5) {
+          // 無限的漣漪 + 六角格
+          float rip = spow(0.5 + 0.5 * sin(d * 46.0 - uTime * 3.2), 8.0);
+          vec2 q = p * 10.0;
+          q.y += mod(floor(q.x), 2.0) * 0.5;
+          vec2 f = abs(fract(q) - 0.5);
+          float hex = smoothstep(0.43, 0.49, max(f.x * 1.2 + f.y * 0.55, f.y));
+          pat = rip * 0.75 + hex * 0.35 * (0.6 + 0.4 * sin(uTime * 2.0 + d * 8.0));
+        } else {
+          // 交錯的斬痕：兩組斜線，每一段隨機斷開，會閃
+          float a = (p.x * 0.85 + p.y) * 3.2 + 0.12 * sin(p.y * 9.0);
+          float b = (p.x - p.y * 0.8) * 2.6 + 0.3;
+          float s1 = line(a, 0.035) * step(0.35, hash(vec2(floor(a), floor(p.x * 3.0))));
+          float s2 = line(b, 0.03) * step(0.5, hash(vec2(floor(b) + 7.0, floor(p.y * 3.0))));
+          float flick = 0.75 + 0.25 * sin(uTime * 11.0 + hash(floor(p * 4.0)) * 6.0);
+          pat = max(s1, s2) * flick + spow(1.0 - d, 3.0) * 0.25;
+        }
+        float border = smoothstep(0.43, 0.5, max(abs(p.x), abs(p.y)));
+        float breathe = 0.8 + 0.2 * sin(uTime * 1.6);
+        float k = inside * (0.08 + pat * 0.9 + border * 0.7) * breathe + wave * 2.2;
+        vec3 col = mix(uColor2, uColor, clamp(pat + wave, 0.0, 1.0)) * k * uAlpha;
+        gl_FragColor = vec4(col, 1.0);
+      }`,
+    transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false,
+    polygonOffset: true, polygonOffsetFactor: -2,
+  });
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(size, size), mat);
+  m.rotation.x = -Math.PI / 2;
+  return m;
+}
+
+/** 從天而降的光柱（棋子沿著它落下）：上淡下亮、會流動。 */
+export function makeBeamPillar(uTime, color) {
+  const mat = new THREE.ShaderMaterial({
+    uniforms: { uTime, uColor: { value: new THREE.Color(color) }, uAlpha: { value: 1 } },
+    vertexShader: `
+      varying vec2 vUv; varying float vFace;
+      void main() {
+        vUv = uv;
+        vec4 mv = modelViewMatrix * vec4(position, 1.0);
+        vFace = abs(dot(normalize(normalMatrix * normal), normalize(-mv.xyz)));
+        gl_Position = projectionMatrix * mv;
+      }`,
+    fragmentShader: `
+      float spow(float x, float y) { return pow(max(x, 1e-4), y); }
+      uniform float uTime, uAlpha; uniform vec3 uColor; varying vec2 vUv; varying float vFace;
+      void main() {
+        float flow = 0.6 + 0.4 * sin(vUv.y * 30.0 + uTime * 18.0);
+        float k = spow(vFace, 1.5) * spow(1.0 - vUv.y, 1.5) * flow;
+        gl_FragColor = vec4(uColor * k * 1.7 * uAlpha, 1.0);
+      }`,
+    transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, toneMapped: false,
+  });
+  const m = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.42, 7, 32, 1, true), mat);
+  m.position.y = 3.5;
+  return m;
 }

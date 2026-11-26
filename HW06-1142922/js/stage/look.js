@@ -147,7 +147,7 @@ export function createMirror(renderer, planeY) {
             + textureLod(tReflect, ruv + vec2(px.x, -px.y), uReflBlur + 0.5).rgb * 0.15
             + textureLod(tReflect, ruv + vec2(-px.x, -px.y), uReflBlur + 0.5).rgb * 0.15;
           float ndv = clamp(dot(normalize(normal), normalize(vViewPosition)), 0.0, 1.0);
-          float fres = 0.35 + 0.65 * pow(1.0 - ndv, 4.0);
+          float fres = 0.35 + 0.65 * pow(max(1.0 - ndv, 1e-4), 4.0);
           outgoingLight += refl * fres * uReflStrength;
         }
         #include <opaque_fragment>`,
@@ -205,64 +205,132 @@ export function stoneRoughness() {
   return t;
 }
 
-// ───────────────────────── 棋子 ─────────────────────────
+// ───────────────────────── 棋子（原創設計：取兩個陣營招式的意象做成抽象物件，不是任何角色或既有道具） ─────────────────────────
 
-/** 宿儺陣營：一簇往上刺的暗紅寶石結晶（會折射後方的棋盤），中心有發光的核。 */
+/**
+ * 宿儺陣營「斬之碑」：一根微微傾斜的黑曜石方尖碑，身上兩道發紅光的 X 形斬痕，
+ * 旁邊漂浮著被切下來的碎塊，底部一圈骨白色的尖牙。userData.update(t) 讓它動起來。
+ */
 export function makeCrimsonCrystal() {
-  const mat = new THREE.MeshPhysicalMaterial({
-    color: '#e0142e', roughness: 0.04, metalness: 0,
-    transmission: 1, thickness: 0.5, ior: 1.77,
-    attenuationColor: '#50000c', attenuationDistance: 0.22,
-    clearcoat: 1, clearcoatRoughness: 0.04,
-    emissive: '#ff1030', emissiveIntensity: 0.18,
-    specularIntensity: 1, envMapIntensity: 1.6,
-    flatShading: true,
-  });
-  mat.userData.crystal = true;
-  mat.userData.ei = mat.emissiveIntensity;
   const group = new THREE.Group();
-  const spikes = [[0, 0.66, 0, 0], [0.17, 0.44, 0.05, 0.35], [-0.16, 0.4, -0.04, -0.4], [0.02, 0.36, -0.17, 0.25], [-0.05, 0.3, 0.17, -0.2]];
-  for (const [x, h, z, tilt] of spikes) {
-    const m = new THREE.Mesh(new THREE.ConeGeometry(0.11, h, 6), mat);
-    m.position.set(x, h / 2 - 0.2, z);
-    m.rotation.z = tilt;
-    m.castShadow = true;
-    group.add(m);
+  const stone = new THREE.MeshPhysicalMaterial({
+    color: '#1a0508', roughness: 0.18, metalness: 0.3, clearcoat: 1, clearcoatRoughness: 0.05,
+    emissive: '#3a0008', emissiveIntensity: 0.4, sheen: 0.5, sheenColor: '#ff3347', flatShading: true,
+  });
+  const obelisk = new THREE.Group();
+  const body = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.16, 0.72, 4, 1), stone);
+  body.rotation.y = Math.PI / 4;
+  body.position.y = 0.16;
+  const tip = new THREE.Mesh(new THREE.ConeGeometry(0.064, 0.18, 4), stone);
+  tip.rotation.y = Math.PI / 4;
+  tip.position.y = 0.61;
+  obelisk.add(body, tip);
+  obelisk.rotation.z = 0.08;
+  obelisk.traverse(o => { if (o.isMesh) o.castShadow = true; });
+  group.add(obelisk);
+  // X 形斬痕（HDR 發光，會泛光）
+  const cutMat = new THREE.MeshBasicMaterial({ color: new THREE.Color('#ff2a3c').multiplyScalar(2.6), toneMapped: false });
+  for (const rz of [0.75, -0.75]) {
+    const cut = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.014, 0.2), cutMat); // 嵌在碑身裡，只露出發光的切口
+    cut.position.y = 0.2;
+    cut.rotation.set(0, Math.PI / 4, rz);
+    obelisk.add(cut);
   }
-  const core = new THREE.Mesh(new THREE.OctahedronGeometry(0.075, 0), new THREE.MeshBasicMaterial({ color: new THREE.Color('#ff6a7a').multiplyScalar(3), toneMapped: false }));
-  core.position.y = -0.02;
-  group.add(core);
-  group.userData.spin = 0.5;
+  // 被切下來、繞著漂浮的碎塊
+  const chips = [];
+  for (let i = 0; i < 4; i++) {
+    const chip = new THREE.Mesh(new THREE.TetrahedronGeometry(0.05 + Math.random() * 0.03, 0), stone);
+    chip.castShadow = true;
+    chip.userData = { a: (i / 4) * Math.PI * 2, r: 0.3 + Math.random() * 0.06, y: 0.05 + Math.random() * 0.45, s: 0.6 + Math.random() * 0.5 };
+    group.add(chip);
+    chips.push(chip);
+  }
+  // 底部一圈骨白色的尖牙（往外斜）
+  const bone = new THREE.MeshPhysicalMaterial({ color: '#efe6d6', roughness: 0.45, clearcoat: 0.6, sheen: 0.6, sheenColor: '#ffffff' });
+  for (let i = 0; i < 6; i++) {
+    const a = (i / 6) * Math.PI * 2;
+    const fang = new THREE.Mesh(new THREE.ConeGeometry(0.035, 0.2, 8), bone);
+    fang.position.set(Math.cos(a) * 0.22, -0.14, Math.sin(a) * 0.22);
+    fang.rotation.set(Math.sin(a) * 0.5, 0, -Math.cos(a) * 0.5);
+    fang.castShadow = true;
+    group.add(fang);
+  }
+  // 腳下暗紅的光暈
+  const pool = new THREE.Mesh(new THREE.RingGeometry(0.05, 0.34, 40), new THREE.MeshBasicMaterial({ color: new THREE.Color('#ff1a30').multiplyScalar(1.4), transparent: true, opacity: 0.5, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false }));
+  pool.rotation.x = -Math.PI / 2;
+  pool.position.y = -0.2;
+  group.add(pool);
+
+  group.userData.spin = 0.35;
+  group.userData.update = t => {
+    const pulse = 0.65 + 0.35 * Math.pow(0.5 + 0.5 * Math.sin(t * 3.1), 3);
+    cutMat.color.setRGB(1, 0.16, 0.24).multiplyScalar(2.6 * pulse);
+    for (const c of chips) {
+      const d = c.userData;
+      const a = d.a + t * 0.9 * d.s;
+      c.position.set(Math.cos(a) * d.r, d.y + Math.sin(t * 1.7 + d.a) * 0.05, Math.sin(a) * d.r);
+      c.rotation.set(t * d.s, t * 0.7, 0);
+    }
+    pool.material.opacity = 0.35 + 0.2 * pulse;
+  };
+  group.scale.setScalar(1.25);
   return group;
 }
 
-/** 五條悟陣營：透明的鑽石結晶，會折射、有色散與彩虹薄膜光，中心是紫色的光核，外圈一道光環。 */
+/**
+ * 五條悟陣營「無限之核」：一顆會折射的玻璃球，裡面一藍一紅兩顆光球互相追逐、中間是紫色的核；
+ * 外圈一道斜環，六個小光點沿著環繞行。userData.update(t) 讓它動起來。
+ */
 export function makeSixEyesCrystal() {
   const group = new THREE.Group();
-  const mat = new THREE.MeshPhysicalMaterial({
-    color: '#f6f4ff', roughness: 0.02, metalness: 0,
-    transmission: 1, thickness: 0.6, ior: 2.1, dispersion: 4,
-    attenuationColor: '#b49cff', attenuationDistance: 0.9,
-    iridescence: 0.8, iridescenceIOR: 1.5, iridescenceThicknessRange: [200, 650],
-    specularIntensity: 1, envMapIntensity: 1.8,
-    flatShading: true,
+  const glass = new THREE.MeshPhysicalMaterial({
+    color: '#ffffff', roughness: 0.02, metalness: 0,
+    transmission: 1, thickness: 0.5, ior: 1.45, dispersion: 2,
+    iridescence: 0.9, iridescenceIOR: 1.4, iridescenceThicknessRange: [150, 600],
+    attenuationColor: '#c9b8ff', attenuationDistance: 1.2, specularIntensity: 1, envMapIntensity: 1.8,
   });
-  mat.userData.crystal = true;
-  mat.userData.ei = 0;
-  const gem = new THREE.Mesh(new THREE.OctahedronGeometry(0.34, 0), mat);
-  gem.scale.set(0.85, 1.25, 0.85);
-  gem.castShadow = true;
-  group.add(gem);
-  const core = new THREE.Mesh(new THREE.OctahedronGeometry(0.09, 0), new THREE.MeshBasicMaterial({ color: new THREE.Color('#a77bff').multiplyScalar(3), toneMapped: false }));
-  core.scale.set(1, 1.3, 1);
-  group.add(core);
-  const halo = new THREE.Mesh(
-    new THREE.TorusGeometry(0.44, 0.018, 12, 64),
-    new THREE.MeshPhysicalMaterial({ color: '#d9ccff', metalness: 1, roughness: 0.15, emissive: '#8a5cff', emissiveIntensity: 1.4 }),
-  );
-  halo.rotation.x = Math.PI / 2;
+  glass.userData.crystal = true;
+  glass.userData.ei = 0;
+  const shell = new THREE.Mesh(new THREE.SphereGeometry(0.3, 48, 32), glass);
+  shell.castShadow = true;
+  group.add(shell);
+  const glow = c => new THREE.MeshBasicMaterial({ color: new THREE.Color(c).multiplyScalar(3), toneMapped: false });
+  const blue = new THREE.Mesh(new THREE.SphereGeometry(0.08, 20, 14), glow('#2f6bff'));
+  const red = new THREE.Mesh(new THREE.SphereGeometry(0.08, 20, 14), glow('#ff2f4f'));
+  const core = new THREE.Mesh(new THREE.SphereGeometry(0.07, 20, 14), glow('#b06cff'));
+  group.add(blue, red, core);
+  const halo = new THREE.Group();
+  halo.rotation.set(1.15, 0, 0.35);
+  halo.add(new THREE.Mesh(new THREE.TorusGeometry(0.46, 0.012, 10, 96), new THREE.MeshPhysicalMaterial({ color: '#e8e2ff', metalness: 1, roughness: 0.1, emissive: '#8a5cff', emissiveIntensity: 1.2 })));
+  const dots = [];
+  for (let i = 0; i < 6; i++) {
+    const d = new THREE.Mesh(new THREE.SphereGeometry(0.026, 12, 8), glow(i % 2 ? '#9fd0ff' : '#ffffff'));
+    halo.add(d);
+    dots.push(d);
+  }
   group.add(halo);
-  group.userData.spin = 1.4;
+  const pool = new THREE.Mesh(new THREE.RingGeometry(0.05, 0.36, 40), new THREE.MeshBasicMaterial({ color: new THREE.Color('#7a6bff').multiplyScalar(1.4), transparent: true, opacity: 0.45, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false }));
+  pool.rotation.x = -Math.PI / 2;
+  pool.position.y = -0.38;
+  group.add(pool);
+
+  group.userData.spin = 0.6;
+  group.userData.update = t => {
+    // 藍、紅兩顆光球繞著核心追逐；靠近時核心變亮（藍 + 紅 → 紫）
+    const a = t * 3.2;
+    const r = 0.13 + 0.05 * Math.sin(t * 1.3);
+    blue.position.set(Math.cos(a) * r, Math.sin(a * 0.7) * 0.05, Math.sin(a) * r);
+    red.position.set(-Math.cos(a) * r, -Math.sin(a * 0.7) * 0.05, -Math.sin(a) * r);
+    const k = 1 + 0.6 * Math.pow(0.5 + 0.5 * Math.sin(t * 1.3 + Math.PI), 4);
+    core.scale.setScalar(k);
+    for (let i = 0; i < 6; i++) {
+      const b = t * 1.4 + (i / 6) * Math.PI * 2;
+      dots[i].position.set(Math.cos(b) * 0.46, Math.sin(b) * 0.46, 0);
+    }
+    halo.rotation.z = 0.35 + t * 0.25;
+    pool.material.opacity = 0.3 + 0.15 * k;
+  };
+  group.scale.setScalar(1.25);
   return group;
 }
 

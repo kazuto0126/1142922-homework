@@ -271,7 +271,7 @@ function debrisSystem(stage) {
       v[i * 3 + 1] -= 16 * dt;
       for (let j = 0; j < 3; j++) { p[i * 3 + j] += v[i * 3 + j] * dt; r[i * 3 + j] += w[i * 3 + j] * dt; }
       // 只有棋盤範圍內有地板；飛出去的碎石會繼續往下掉
-      const onBoard = Math.abs(p[i * 3]) < 3.4 && Math.abs(p[i * 3 + 2]) < 3.4;
+      const onBoard = Math.abs(p[i * 3]) < 4.0 && Math.abs(p[i * 3 + 2]) < 4.0; // 棋盤半寬約 3.9
       const floor = TILE_TOP + 0.05 * sc[i];
       if (onBoard && p[i * 3 + 1] < floor) {
         p[i * 3 + 1] = floor;
