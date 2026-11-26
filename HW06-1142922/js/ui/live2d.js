@@ -12,11 +12,18 @@ window.addEventListener('pointermove', e => {
   pointer.y = (e.clientY / window.innerHeight) * 2 - 1;
 }, { passive: true });
 
+let drawnLastFrame = 0;
+/** 驗證用：上一幀實際重畫了幾張立繪。 */
+export const live2dDrawn = () => drawnLastFrame;
+
 function loop(now) {
   const t = now / 1000;
+  drawnLastFrame = 0;
   for (const p of active) {
     if (!p.canvas.isConnected) { active.delete(p); continue; }
+    if (p.canvas.closest('[hidden]')) continue; // 被隱藏的畫面（標題、選陣營）不用重畫
     draw(p, t);
+    drawnLastFrame++;
   }
   raf = active.size ? requestAnimationFrame(loop) : 0;
 }
