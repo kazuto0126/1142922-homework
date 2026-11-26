@@ -1,3 +1,10 @@
+/* 日文演出字型（只含用到的字，由 tools/font-chars.mjs 產生清單）。SIL OFL 1.1，見 fonts/OFL.txt */
+@font-face {
+  font-family: 'Dela Gothic One';
+  src: url('../fonts/dela-gothic-one-subset.woff2') format('woff2');
+  font-display: swap;
+}
+
 :root {
   --bg: #05060d;
   --ink: #eef1ff;
@@ -41,7 +48,6 @@ html, body {
   pointer-events: none;
 }
 
-#ui > * { pointer-events: auto; }
 
 #hint {
   position: fixed;
