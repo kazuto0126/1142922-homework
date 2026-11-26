@@ -12,6 +12,7 @@ import { tileCanvas, loadEmblems } from './assets/emblems.js';
 import { createScreens } from './ui/screens.js';
 import { createAudio } from './audio/engine.js';
 import { createPerformer } from './perform.js';
+import { liveParticles } from './fx/common.js';
 
 const CPU_THINK_MS = 400;
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -249,6 +250,7 @@ async function boot() {
   // 開發 / 驗證用
   window.__hw06 = {
     stage, app, stats, audio, performer,
+    liveParticles: () => liveParticles(stage),
     get settings() { return settings; },
     /** 驗證用：替目前輪到的人類下一手（等同點擊那一格）。 */
     play: cell => (canPlay() ? humanMove(cell) : Promise.resolve('blocked')),

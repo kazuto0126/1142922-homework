@@ -420,14 +420,28 @@ export function createStage(canvas, { quality = 'high' } = {}) {
   }
 
   let fxGeneration = 0;
+  const cancelHooks = new Set();
+  /** 讓特效系統（例如粒子）在特效被全部取消時一起清空。 */
+  function onCancelFx(fn) { cancelHooks.add(fn); return () => cancelHooks.delete(fn); }
+
+  /**
+   * 立刻停止所有特效：延遲特效不再觸發、每幀更新的特效停止、粒子清空、鏡頭不再震動。
+   * 棋子和格子不動。
+   */
+  function cancelFx() {
+    fxGeneration++; // 還沒觸發的延遲特效、正在跑的 spawn 看到世代變了就會停
+    for (const child of [...fxLayer.children]) { fxLayer.remove(child); dispose(child); }
+    for (const fn of cancelHooks) { try { fn(); } catch (e) { console.error(e); } }
+    shakeAmp = 0;
+  }
+
   function clearBoard() {
-    fxGeneration++; // 還沒觸發的延遲特效看到世代變了就不會出現
+    cancelFx();
     for (const c of cells) {
       if (c.piece) { pieces.remove(c.piece); dispose(c.piece); c.piece = null; }
       if (c.standee) { pieces.remove(c.standee); dispose(c.standee); c.standee = null; }
       setFrameColor(c.tile.userData.cell, c.color);
     }
-    for (const child of [...fxLayer.children]) { fxLayer.remove(child); dispose(child); }
     resetEnvironment();
   }
 
@@ -437,7 +451,7 @@ export function createStage(canvas, { quality = 'high' } = {}) {
   return {
     scene, camera, renderer, controls, fxLayer,
     cellCenter: i => cells[i].center.clone(),
-    pickCell, setHover, setWorldImage, placePiece, placeStandee, clearBoard, takeCell, cellsOf, resetEnvironment,
+    pickCell, setHover, setWorldImage, placePiece, placeStandee, clearBoard, takeCell, cellsOf, resetEnvironment, cancelFx, onCancelFx,
     onFrame, tween, flyTo, orbitLine, restoreView, snapBack, resetView, setQuality, shake,
     get quality() { return quality; },
     get fxGeneration() { return fxGeneration; },

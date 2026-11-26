@@ -68,6 +68,7 @@ function particleSystem(stage) {
   let live = 0;
 
   const sys = {
+    liveCount: () => { let n = 0; for (let i = 0; i < live; i++) if (life[i] > 0) n++; return n; },
     cap: () => (stage.quality === 'low' ? 1500 : N),
     spawn(p, v, color, s, l, a, g, d) {
       const cap = sys.cap();
@@ -81,6 +82,19 @@ function particleSystem(stage) {
       live = Math.max(live, i + 1);
     },
   };
+
+  // 特效全部取消時（重開一局、回標題、跳過結局）：所有粒子立刻消失
+  stage.onCancelFx(() => {
+    for (let i = 0; i < live; i++) { life[i] = 0; rgba[i * 4 + 3] = 0; size[i] = 0; }
+    live = 0;
+    upload();
+  });
+  const upload = () => {
+    geo.attributes.position.needsUpdate = true;
+    geo.attributes.rgba.needsUpdate = true;
+    geo.attributes.size.needsUpdate = true;
+  };
+  let wasActive = false;
 
   stage.onFrame(dt => {
     mat.uniforms.pixelRatio.value = stage.renderer.getPixelRatio();
@@ -98,11 +112,10 @@ function particleSystem(stage) {
       rgba[i * 4 + 3] = alpha0[i] * Math.pow(1 - k, 1.4);
       size[i] = size0[i] * (1 - 0.45 * k);
     }
-    if (any || live) {
-      geo.attributes.position.needsUpdate = true;
-      geo.attributes.rgba.needsUpdate = true;
-      geo.attributes.size.needsUpdate = true;
-    }
+    // 有粒子在動時才上傳；全部消失的那一幀再上傳一次（把最後的粒子清掉）
+    if (any || wasActive) upload();
+    if (!any) live = 0;
+    wasActive = any;
   });
 
   systems.set(stage, sys);
@@ -169,6 +182,12 @@ export function emit(stage, {
 
 export const burst = (stage, pos, opts = {}) => emit(stage, { ...opts, pos, shape: opts.shape || 'sphere' });
 
+/** 驗證用：目前還活著的粒子數。 */
+export function liveParticles(stage) {
+  const sys = systems.get(stage);
+  return sys ? sys.liveCount() : 0;
+}
+
 // ───────────────────────── 短暫物件 ─────────────────────────
 
 export function glowMat(color, opacity = 1) {
@@ -179,11 +198,13 @@ export function glowMat(color, opacity = 1) {
 
 /** 把物件放進特效層，在 life 秒內每幀呼叫 update(k, obj, dt)，結束後移除。 */
 export function spawn(stage, obj, { life = 0.6, delay = 0, update = null } = {}) {
+  const gen = stage.fxGeneration;
   return new Promise(resolve => {
     let t = -delay;
     obj.visible = delay <= 0;
     stage.fxLayer.add(obj);
     const off = stage.onFrame(dt => {
+      if (stage.fxGeneration !== gen) { off(); resolve(); return; } // 特效被取消了（物件已由 cancelFx 清掉）
       t += dt;
       if (t < 0) return;
       obj.visible = true;

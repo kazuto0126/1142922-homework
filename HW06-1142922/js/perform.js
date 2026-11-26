@@ -10,6 +10,7 @@ import * as cutin from './ui/cutin.js';
 
 export function createPerformer({ stage, audio, heroImages, leaderImages, getSettings }) {
   let current = null;
+  let epoch = 0; // cancelCurrent() 時 +1；演出各段之間檢查，避免取消後下一段又開始
 
   /** 以舞台的每一幀驅動時間軸。 */
   async function run(tl) {
@@ -85,8 +86,10 @@ export function createPerformer({ stage, audio, heroImages, leaderImages, getSet
    * 每一段都可以跳過；回傳 'cancelled' 表示中途被取消（例如按了回標題）。
    */
   async function performFinish(result) {
+    const myEpoch = epoch;
     const faction = result.winnerFaction;
-    const skipCleanup = () => { cutin.clearAll(); stage.snapBack(); };
+    // 跳過結局相關演出：cut-in、鏡頭、還在跑的特效全部收掉
+    const skipCleanup = () => { cutin.clearAll(); stage.snapBack(); stage.cancelFx(); };
 
     if (faction && result.line) {
       const plan = planUnison(result.line);
@@ -115,9 +118,12 @@ export function createPerformer({ stage, audio, heroImages, leaderImages, getSet
       tl.setDuration(plan.duration);
       tl.onSkip(skipCleanup);
       const r = await run(tl);
-      if (r === 'cancelled') return r;
-      stage.snapBack();
+      // 跳過合體技 = 直接到結局畫面（不再播勝利演出）
+      if (r !== 'done') { audio.duck(false); return r; }
+      await stage.restoreView(400);
+      if (epoch !== myEpoch) return 'cancelled'; // 鏡頭回位的空檔被取消了
     }
+    if (epoch !== myEpoch) return 'cancelled';
 
     // 結局演出
     const ending = planEnding(result);
@@ -148,6 +154,7 @@ export function createPerformer({ stage, audio, heroImages, leaderImages, getSet
     get busy() { return !!current; },
     skip() { if (current) current.skip(); },
     cancelCurrent() {
+      epoch++;
       if (current) current.cancel();
       cutin.clearAll();
       stage.snapBack();
