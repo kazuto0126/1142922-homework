@@ -90,7 +90,7 @@ export function createStage(canvas, { quality = 'high' } = {}) {
   // ── 後製 ──
   const composer = new EffectComposer(renderer);
   composer.addPass(new RenderPass(scene, camera));
-  const bloom = new UnrealBloomPass(new THREE.Vector2(256, 256), 0.85, 0.55, 0.78);
+  const bloom = new UnrealBloomPass(new THREE.Vector2(256, 256), 0.7, 0.5, 0.82);
   composer.addPass(bloom);
   composer.addPass(new OutputPass());
   let useComposer = true;
