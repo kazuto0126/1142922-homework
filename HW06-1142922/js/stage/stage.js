@@ -6,14 +6,15 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
-import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { WORLDS, FACTIONS } from '../core/worlds.js';
+import { makeStudioEnv, createMirror, brushedTexture, stoneRoughness, makeCrimsonCrystal, makeSixEyesCrystal, setCrystalQuality } from './look.js';
 
 export const CELL = 2;
 export const GAP = 0.15;
 export const STEP = CELL + GAP;
 const TILE_TOP = 0.125;
 const DEG = Math.PI / 180;
+const FRAME_GLOW = 1.8; // 邊框發光線的 HDR 亮度（超過泛光門檻才會發光）
 const DEFAULT_VIEW = { polar: 50 * DEG, azimuth: 0, distance: 12.5, target: new THREE.Vector3(0, 0, 0.4) };
 
 export function supportsWebGL() {
@@ -32,17 +33,18 @@ export function createStage(canvas, { quality = 'high' } = {}) {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.05;
+  renderer.toneMappingExposure = 1.0;
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
   const scene = new THREE.Scene();
   scene.background = new THREE.Color('#05060d');
   scene.fog = new THREE.FogExp2('#05060d', 0.022);
-  // 環境反射：讓金屬邊框、棋子有真實的高光
-  const pmrem = new THREE.PMREMGenerator(renderer);
-  scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
-  scene.environmentIntensity = 0.45;
+  // 環境反射：攝影棚燈條，讓金屬、亮面、結晶有長條的真實高光
+  scene.environment = makeStudioEnv(renderer);
+  scene.environmentIntensity = 0.9;
+  // 棋盤表面的即時鏡面反射（棋子、招式都會倒映在棋盤上）
+  const mirror = createMirror(renderer, TILE_TOP);
 
   const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 300);
   const controls = new OrbitControls(camera, canvas);
@@ -76,20 +78,43 @@ export function createStage(canvas, { quality = 'high' } = {}) {
   accentR.position.set(5.5, 2.2, 1);
   scene.add(accentL, accentR);
 
+  // 特效閃光用的固定燈池：燈的數量不變，Three.js 就不用在招式放出來的瞬間重新編譯所有材質（原本卡頓的主因）
+  const lightPool = Array.from({ length: 4 }, () => {
+    const l = new THREE.PointLight('#ffffff', 0, 9, 2);
+    l.userData.owner = null;
+    scene.add(l);
+    return l;
+  });
+  let poolCursor = 0;
+  /** 借一盞特效燈；同時超過 4 個閃光時，最舊的那盞會被拿去用。 */
+  function borrowLight() {
+    const l = lightPool[poolCursor];
+    poolCursor = (poolCursor + 1) % lightPool.length;
+    const token = {};
+    l.userData.owner = token;
+    l.intensity = 0;
+    return { light: l, owns: () => l.userData.owner === token };
+  }
+
   // ── 背景星空 ──
   scene.add(makeStars());
 
   // ── 平台與格子 ──
   const board = new THREE.Group();
   scene.add(board);
-  board.add(makePlatform());
+  board.add(makePlatform(mirror));
 
+  const brushed = brushedTexture();
   const tiles = [];
   const cells = WORLDS.map(w => {
     const i = w.cell;
     const center = new THREE.Vector3(((i % 3) - 1) * STEP, 0, (Math.floor(i / 3) - 1) * STEP);
-    const side = new THREE.MeshStandardMaterial({ color: '#20253a', roughness: 0.35, metalness: 0.75 });
-    const top = new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 0.45, metalness: 0.15, emissive: '#ffffff', emissiveIntensity: 0.1 });
+    // 側面：拉絲鈦金屬（異向高光）；表面：上了透明漆的亮面，會倒映棋子和招式
+    const side = new THREE.MeshPhysicalMaterial({ color: '#2a3048', roughness: 0.32, metalness: 1, roughnessMap: brushed, anisotropy: 0.7, clearcoat: 0.4, clearcoatRoughness: 0.2 });
+    const top = mirror.addMirror(new THREE.MeshPhysicalMaterial({
+      color: '#ffffff', roughness: 0.55, metalness: 0.05, emissive: '#ffffff', emissiveIntensity: 0.08,
+      clearcoat: 0.35, clearcoatRoughness: 0.12, specularIntensity: 0.4, envMapIntensity: 0.35,
+    }), { strength: 0.5, blur: 1.2 });
     const tile = new THREE.Mesh(new THREE.BoxGeometry(CELL, 0.25, CELL), [side, side, top, side, side, side]);
     tile.castShadow = true;
     tile.receiveShadow = true;
@@ -113,9 +138,11 @@ export function createStage(canvas, { quality = 'high' } = {}) {
   scene.add(fxLayer);
 
   // ── 後製 ──
-  const composer = new EffectComposer(renderer);
+  // 後製用的畫面加上 4 倍多重取樣抗鋸齒（EffectComposer 預設沒有，邊緣會有鋸齒）
+  const composer = new EffectComposer(renderer, new THREE.WebGLRenderTarget(2, 2, { type: THREE.HalfFloatType, samples: 4 }));
   composer.addPass(new RenderPass(scene, camera));
-  const bloom = new UnrealBloomPass(new THREE.Vector2(256, 256), 0.7, 0.5, 0.82);
+  // 門檻設在 1 以上：只有真的會發光的東西（招式、光核、邊框）才泛光，棋盤本身保持清晰不霧
+  const bloom = new UnrealBloomPass(new THREE.Vector2(256, 256), 0.6, 0.45, 1.0);
   composer.addPass(bloom);
   // 衝擊後製：色差 + 放射模糊 + 閃白 + 暗角，命中時瞬間拉高再衰減
   const impactPass = new ShaderPass(IMPACT_SHADER);
@@ -126,12 +153,40 @@ export function createStage(canvas, { quality = 'high' } = {}) {
 
   function setQuality(q) {
     quality = q === 'low' ? 'low' : 'high';
-    useComposer = quality === 'high';
-    renderer.shadowMap.enabled = quality === 'high';
-    key.castShadow = quality === 'high';
+    const high = quality === 'high';
+    useComposer = high;
+    renderer.shadowMap.enabled = high;
+    key.castShadow = high;
+    setCrystalQuality(pieces, high);
+    perf.level = 0;
+    applyPerf();
     scene.traverse(o => { if (o.material) [].concat(o.material).forEach(m => { m.needsUpdate = true; }); });
-    renderer.setPixelRatio(quality === 'high' ? Math.min(window.devicePixelRatio || 1, 2) : 1);
+  }
+
+  // ── 自動調整畫質：幀率掉下來就先降解析度、再關鏡面反射，順暢優先 ──
+  // 等級：[解析度倍率, 鏡面反射解析度（0 = 關）]
+  const PERF_LEVELS = [[1, 0.5], [0.85, 0.5], [0.75, 0.4], [0.65, 0.35], [0.6, 0]];
+  const perf = { level: 0, sum: 0, n: 0, since: performance.now(), goodWindows: 0, fps: 60 };
+  function applyPerf() {
+    const [scaleRes, mirrorRes] = PERF_LEVELS[perf.level];
+    const maxPR = quality === 'high' ? Math.min(window.devicePixelRatio || 1, 2) : 1;
+    renderer.setPixelRatio(Math.max(0.5, maxPR * (quality === 'high' ? scaleRes : 1)));
+    mirror.enabled = quality === 'high' && mirrorRes > 0;
+    mirror.scale = mirrorRes || 0.35;
     resize();
+  }
+  function trackPerf(rawDt) {
+    if (quality !== 'high' || document.hidden || rawDt > 0.25) return; // 背景分頁、切換時的長間隔不算
+    perf.sum += rawDt; perf.n++;
+    const now = performance.now();
+    if (now - perf.since < 1500 || perf.n < 20) return;
+    const avg = perf.sum / perf.n;
+    perf.fps = Math.round(1 / avg);
+    perf.sum = 0; perf.n = 0; perf.since = now;
+    if (avg > 1 / 42 && perf.level < PERF_LEVELS.length - 1) { perf.level++; perf.goodWindows = 0; applyPerf(); }
+    else if (avg < 1 / 75 && perf.level > 0 && !camTween) {
+      if (++perf.goodWindows >= 4) { perf.level--; perf.goodWindows = 0; applyPerf(); }
+    } else perf.goodWindows = 0;
   }
 
   function resize() {
@@ -140,6 +195,7 @@ export function createStage(canvas, { quality = 'high' } = {}) {
     renderer.setSize(w, h, false);
     composer.setPixelRatio(renderer.getPixelRatio());
     composer.setSize(w, h);
+    mirror.setSize(w * renderer.getPixelRatio(), h * renderer.getPixelRatio());
     camera.aspect = w / h;
     // 直式螢幕（手機）拉遠一點，整個棋盤才放得下
     baseFov = w < h ? 60 : 45;
@@ -174,10 +230,16 @@ export function createStage(canvas, { quality = 'high' } = {}) {
   }
 
   // 每一幀：可以由 setAnimationLoop 驅動，也可以由開發工具手動呼叫 tick()
+  let timeScale = 1;
   const frame = () => {
-    const dt = Math.min(clock.getDelta(), 0.1);
-    // 命中停頓（hit-stop）：特效幾乎停住一瞬間，鏡頭和介面照常
-    const fxDt = performance.now() < hitStopUntil ? dt * 0.04 : dt;
+    const rawDt = clock.getDelta();
+    trackPerf(rawDt);
+    // 偶爾一幀特別久（例如切分頁）時不要讓粒子一口氣跳一大段，畫面比較順
+    const dt = Math.min(rawDt, 0.05);
+    // 命中停頓（hit-stop）：特效幾乎停住一瞬間，再平滑地加速回正常速度（不是突然跳回去），鏡頭和介面照常
+    const target = performance.now() < hitStopUntil ? 0.06 : 1;
+    timeScale += (target - timeScale) * (target < timeScale ? 1 : Math.min(1, dt * 14));
+    const fxDt = dt * timeScale;
     for (const t of [...tweens]) {
       const k = Math.min(1, (performance.now() - t.start) / t.ms);
       try { t.fn(k); } catch (e) { console.error(e); }
@@ -209,7 +271,10 @@ export function createStage(canvas, { quality = 'high' } = {}) {
         shook = true;
       }
     }
-    if (useComposer) composer.render(); else renderer.render(scene, camera);
+    if (useComposer) {
+      mirror.render(scene, camera);
+      composer.render();
+    } else renderer.render(scene, camera);
     if (shook) camera.position.sub(shakeOff);
   };
   renderer.setAnimationLoop(frame);
@@ -395,6 +460,7 @@ export function createStage(canvas, { quality = 'high' } = {}) {
     const c = cells[i];
     if (c.piece) return c.piece;
     const piece = faction === 'sukuna' ? makeCrimsonCrystal() : makeSixEyesCrystal();
+    setCrystalQuality(piece, quality === 'high');
     piece.userData.faction = faction;
     piece.position.set(c.center.x + 0.55, 0, c.center.z + 0.55);
     piece.userData.baseY = TILE_TOP + 0.45;
@@ -442,7 +508,7 @@ export function createStage(canvas, { quality = 'high' } = {}) {
   }
 
   function setFrameColor(i, color) {
-    for (const m of cells[i].frame.children) m.material.color.set(color);
+    for (const m of cells[i].frame.children) m.material.color.set(color).multiplyScalar(FRAME_GLOW);
   }
 
   /**
@@ -494,8 +560,10 @@ export function createStage(canvas, { quality = 'high' } = {}) {
     fxGeneration++; // 還沒觸發的延遲特效、正在跑的 spawn 看到世代變了就會停
     for (const child of [...fxLayer.children]) { fxLayer.remove(child); dispose(child); }
     for (const fn of cancelHooks) { try { fn(); } catch (e) { console.error(e); } }
+    for (const l of lightPool) { l.intensity = 0; l.userData.owner = null; }
     shakeAmp = 0;
     hitStopUntil = 0;
+    timeScale = 1;
     fovKick = 0;
     fxPost.aberration = fxPost.zoom = fxPost.flash = 0;
   }
@@ -510,6 +578,45 @@ export function createStage(canvas, { quality = 'high' } = {}) {
     resetEnvironment();
   }
 
+  /**
+   * 預先編譯著色器：把各種特效會用到的物件放在畫面外，先讓 GPU 編好程式，
+   * 第一次放招時就不會因為編譯而卡一下。
+   */
+  // 這些樣本之後一直留在場景裡（隱藏）：Three.js 在最後一個用到某個著色器的材質被丟掉時會把著色器刪掉，
+  // 下一招又要重新編譯而卡一下；留一份在這裡，著色器就一直在。
+  const keepAlive = new THREE.Group();
+  keepAlive.position.set(0, -400, 0);
+  scene.add(keepAlive);
+  async function warmup(objects = []) {
+    for (const o of [makeCrimsonCrystal(), makeSixEyesCrystal(), ...objects]) {
+      o.traverse(m => { m.frustumCulled = false; });
+      keepAlive.add(o);
+    }
+    keepAlive.visible = true;
+    try {
+      // 要用跟實際繪製一樣的輸出目標編譯（後製畫面是線性色彩、不做色調映射，跟直接畫到螢幕的著色器版本不同）
+      const prev = renderer.getRenderTarget();
+      renderer.setRenderTarget(useComposer ? composer.readBuffer : null);
+      const p = renderer.compileAsync(scene, camera);
+      renderer.setRenderTarget(prev);
+      await p;
+      // 顯示卡驅動要等「第一次真的畫」才把著色器準備完，所以用一台對著樣本的鏡頭，在畫面外真的畫一次
+      const warmCam = new THREE.PerspectiveCamera(60, 1, 0.1, 50);
+      warmCam.position.set(0, -398, 6);
+      warmCam.lookAt(0, -400, 0);
+      const warmRT = new THREE.WebGLRenderTarget(64, 64, { type: THREE.HalfFloatType, samples: 4 });
+      renderer.setRenderTarget(useComposer ? warmRT : null);
+      renderer.render(scene, warmCam);
+      renderer.setRenderTarget(prev);
+      warmRT.dispose();
+      frame(); // 再畫一幀正常畫面：陰影、後製用的著色器也一起準備好
+    } catch (e) {
+      console.warn('warmup', e);
+    } finally {
+      keepAlive.visible = false;
+    }
+  }
+
   setQuality(quality);
   setView(DEFAULT_VIEW);
 
@@ -517,7 +624,8 @@ export function createStage(canvas, { quality = 'high' } = {}) {
     scene, camera, renderer, controls, fxLayer,
     cellCenter: i => cells[i].center.clone(),
     pickCell, setHover, setWorldImage, placePiece, placeStandee, clearBoard, takeCell, cellsOf, resetEnvironment, cancelFx, onCancelFx,
-    onFrame, tween, flyTo,
+    onFrame, tween, flyTo, borrowLight, warmup, mirror, composer, bloom,
+    get perf() { return { level: perf.level, fps: perf.fps, pixelRatio: renderer.getPixelRatio(), mirror: mirror.enabled }; },
     /** 開發用：停掉自動更新，改成手動推進（瀏覽器暫停動畫時截圖用）。 */
     manualTick(on) { renderer.setAnimationLoop(on ? null : frame); return frame; }, orbitLine, restoreView, snapBack, resetView, setQuality, shake, impact,
     get quality() { return quality; },
@@ -545,15 +653,19 @@ const IMPACT_SHADER = {
     void main() {
       vec2 dir = vUv - 0.5;
       vec3 col = vec3(0.0);
-      // 放射模糊（往畫面中心衝）+ 色差（紅藍往外分開）
-      for (int i = 0; i < 6; i++) {
-        float k = 1.0 - float(i) / 6.0 * uZoom;
-        vec2 uv = 0.5 + dir * k;
-        col.r += texture2D(tDiffuse, uv + dir * uAberration).r;
-        col.g += texture2D(tDiffuse, uv).g;
-        col.b += texture2D(tDiffuse, uv - dir * uAberration).b;
+      if (uZoom < 0.002 && uAberration < 0.0003) {
+        col = texture2D(tDiffuse, vUv).rgb; // 平常沒有衝擊時只取一次樣，省效能
+      } else {
+        // 放射模糊（往畫面中心衝）+ 色差（紅藍往外分開）
+        for (int i = 0; i < 6; i++) {
+          float k = 1.0 - float(i) / 6.0 * uZoom;
+          vec2 uv = 0.5 + dir * k;
+          col.r += texture2D(tDiffuse, uv + dir * uAberration).r;
+          col.g += texture2D(tDiffuse, uv).g;
+          col.b += texture2D(tDiffuse, uv - dir * uAberration).b;
+        }
+        col /= 6.0;
       }
-      col /= 6.0;
       col *= 1.0 + uFlash * 2.0; // 閃光只加亮原本的顏色，不會蒙上一層灰
       float vig = smoothstep(0.85, 0.25, length(dir));
       col *= mix(1.0, vig, 0.35);
@@ -590,7 +702,7 @@ function dispose(obj) {
 
 function makeFrame(color) {
   const g = new THREE.Group();
-  const mat = () => new THREE.MeshBasicMaterial({ color, toneMapped: false });
+  const mat = () => new THREE.MeshBasicMaterial({ color: new THREE.Color(color).multiplyScalar(FRAME_GLOW), toneMapped: false });
   const t = 0.06, len = CELL;
   const bars = [
     [len, t, 0, -len / 2], [len, t, 0, len / 2],
@@ -604,23 +716,35 @@ function makeFrame(color) {
   return g;
 }
 
-function makePlatform() {
+function makePlatform(mirror) {
   const g = new THREE.Group();
   const size = STEP * 3 + 0.6;
-  const slab = new THREE.Mesh(
-    new THREE.CylinderGeometry(size * 0.74, size * 0.6, 0.9, 8, 1),
-    new THREE.MeshStandardMaterial({ color: '#141729', roughness: 0.3, metalness: 0.85 }),
-  );
+  // 拋光的黑曜石平台：亮面、帶細紋，也會倒映棋子和招式
+  const rough = stoneRoughness();
+  rough.repeat.set(2, 2);
+  const stone = mirror.addMirror(new THREE.MeshPhysicalMaterial({
+    color: '#0b0d18', roughness: 0.22, roughnessMap: rough, metalness: 0.35,
+    clearcoat: 1, clearcoatRoughness: 0.05, sheen: 0.3, sheenColor: '#4a3a8a',
+  }), { strength: 0.75, blur: 1.6 });
+  const slab = new THREE.Mesh(new THREE.CylinderGeometry(size * 0.74, size * 0.6, 0.9, 8, 1), stone);
   slab.receiveShadow = true;
   slab.rotation.y = Math.PI / 8;
   slab.position.y = -0.62;
   g.add(slab);
+  // 邊緣：拋光的金屬鑲邊 + 發光線
+  const trim = new THREE.Mesh(
+    new THREE.CylinderGeometry(size * 0.745, size * 0.745, 0.06, 8, 1, true),
+    new THREE.MeshPhysicalMaterial({ color: '#c9ccd8', metalness: 1, roughness: 0.12, clearcoat: 0.5, side: THREE.DoubleSide }),
+  );
+  trim.rotation.y = Math.PI / 8;
+  trim.position.y = -0.2;
+  g.add(trim);
   const rim = new THREE.Mesh(
-    new THREE.TorusGeometry(size * 0.74, 0.04, 8, 64),
-    new THREE.MeshBasicMaterial({ color: '#6f7cff', toneMapped: false }),
+    new THREE.TorusGeometry(size * 0.74, 0.03, 8, 96),
+    new THREE.MeshBasicMaterial({ color: new THREE.Color('#6f7cff').multiplyScalar(2), toneMapped: false }),
   );
   rim.rotation.x = Math.PI / 2;
-  rim.position.y = -0.17;
+  rim.position.y = -0.24;
   g.add(rim);
   return g;
 }
@@ -640,40 +764,4 @@ function makeStars() {
   geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
   const stars = new THREE.Points(geo, new THREE.PointsMaterial({ color: '#cfd8ff', size: 0.35, sizeAttenuation: true, fog: false }));
   return stars;
-}
-
-/** 宿儺陣營的棋子：一簇往上刺的暗紅結晶（原創造型）。 */
-function makeCrimsonCrystal() {
-  const mat = new THREE.MeshStandardMaterial({ color: '#5a0010', emissive: '#ff2040', emissiveIntensity: 0.55, roughness: 0.25, metalness: 0.5, flatShading: true });
-  const group = new THREE.Group();
-  const spikes = [[0, 0.62, 0, 0], [0.16, 0.42, 0.05, 0.35], [-0.15, 0.38, -0.04, -0.4], [0.02, 0.34, -0.16, 0.25]];
-  for (const [x, h, z, tilt] of spikes) {
-    const m = new THREE.Mesh(new THREE.ConeGeometry(0.1, h, 5), mat);
-    m.position.set(x, h / 2 - 0.2, z);
-    m.rotation.z = tilt;
-    m.castShadow = true;
-    group.add(m);
-  }
-  const core = new THREE.Mesh(new THREE.OctahedronGeometry(0.08, 0), new THREE.MeshBasicMaterial({ color: '#ff8090', toneMapped: false }));
-  core.position.y = -0.05;
-  group.add(core);
-  group.userData.spin = 0.5;
-  return group;
-}
-
-function makeSixEyesCrystal() {
-  const mesh = new THREE.Mesh(new THREE.OctahedronGeometry(0.34, 0), new THREE.MeshStandardMaterial({
-    color: '#f2f6ff', emissive: '#8a5cff', emissiveIntensity: 1.1,
-    roughness: 0.2, metalness: 0.4, flatShading: true,
-  }));
-  mesh.scale.set(0.85, 1.25, 0.85);
-  const halo = new THREE.Mesh(
-    new THREE.TorusGeometry(0.42, 0.025, 8, 48),
-    new THREE.MeshBasicMaterial({ color: '#b9a0ff', toneMapped: false }),
-  );
-  halo.rotation.x = Math.PI / 2;
-  mesh.add(halo);
-  mesh.userData.spin = 1.4;
-  mesh.castShadow = true;
-  return mesh;
 }

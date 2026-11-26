@@ -15,6 +15,7 @@ import { playLogin } from './ui/login.js';
 import { SFX } from './assets/manifest.js';
 import { createPerformer } from './perform.js';
 import { liveParticles } from './fx/common.js';
+import { fxWarmupObjects, rehearse } from './fx/warmup.js';
 
 const CPU_THINK_MS = 400;
 const SAO_CELL = 7; // 刀劍神域那一格的歌，當作標題與選單的背景音樂
@@ -55,6 +56,8 @@ async function boot() {
   const leaderImages = { sukuna: leaderList[0], gojo: leaderList[1] };
   const emblems = await loadEmblems();
   WORLDS.forEach(w => stage.setWorldImage(w.cell, tileCanvas(w, emblems[w.cell])));
+  // 在封面畫面時先把特效的著色器編譯好（不等它，背景進行）
+  stage.warmup(fxWarmupObjects(stage));
 
   // ── 狀態 ──
   const app = {
@@ -71,7 +74,10 @@ async function boot() {
       await audio.unlock();
       audio.music.playCell(SAO_CELL); // 從按下 START 開始就是刀劍神域的歌
       audio.sfx('charge', { pitch: 0.6 });
+      // 登入動畫蓋住整個畫面時，在棋盤上靜音預演幾招：顯示卡第一次畫這些特效會卡一下，先在看不到的時候卡掉
+      const stopRehearsal = rehearse(stage);
       await playLogin({ onVoice: () => audio.clip(SFX.linkStart, 1) });
+      stopRehearsal();
       audio.sfx('whoosh', { pitch: 0.8 });
       goMode();
     },

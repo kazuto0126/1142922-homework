@@ -61,7 +61,7 @@ export function energyMaterial(stage, { c1 = '#ffffff', c2 = '#3388ff', scroll =
         float fr = pow(1.0 - abs(dot(vN, vView)), 2.0) * uFresnel;
         float e = smoothstep(uThreshold + 0.12, uThreshold + 0.42, n + fr * 0.35);
         float fade = uFadeV > 0.0 ? smoothstep(0.0, uFadeV, vUv.y) * smoothstep(1.0, 1.0 - uFadeV, vUv.y) : 1.0;
-        vec3 col = mix(uC2, uC1, e * e) * (0.22 + 0.7 * e);
+        vec3 col = mix(uC2, uC1, e * e) * (0.26 + 0.95 * e);
         gl_FragColor = vec4(col, clamp(e * 0.8 + fr * 0.15, 0.0, 1.0) * fade * uOpacity);
       }`,
     transparent: true,

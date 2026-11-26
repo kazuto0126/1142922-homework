@@ -1,8 +1,14 @@
 // 必殺技用的 3D 模型（程式建模）：巨拳、巨人手臂、雙劍、硬幣。只做招式的物件，不做角色本人。
 import * as THREE from 'three';
 
-export function std(color, { emissive = '#000000', ei = 0, rough = 0.55, metal = 0.1, flat = false } = {}) {
-  return new THREE.MeshStandardMaterial({ color, emissive, emissiveIntensity: ei, roughness: rough, metalness: metal, flatShading: flat });
+/**
+ * 實體材質。clearcoat：表面的透明漆（金屬、亮面）；sheen：皮膚 / 布料邊緣的柔光；fade：之後會淡出（一開始就設成透明，避免中途重新編譯）。
+ */
+export function std(color, { emissive = '#000000', ei = 0, rough = 0.55, metal = 0.1, flat = false, clearcoat = 0, sheen = 0, sheenColor = '#ffffff', fade = false } = {}) {
+  return new THREE.MeshPhysicalMaterial({
+    color, emissive, emissiveIntensity: ei, roughness: rough, metalness: metal, flatShading: flat,
+    clearcoat, clearcoatRoughness: 0.12, sheen, sheenColor, sheenRoughness: 0.45, transparent: fade,
+  });
 }
 
 /** 圓角方塊（用來做指節、刀柄）。 */
@@ -63,8 +69,8 @@ export function makeFist(material = std('#cdb99c', { rough: 0.75 }), { arm = 3 }
 
 /** 巨人的手臂：有肌肉起伏的前臂 + 張開抓取的手（掌心朝 -z），從地底伸出用。 */
 export function makeTitanArm() {
-  const skin = std('#b86e52', { emissive: '#3a0f06', ei: 0.25, rough: 0.75 });
-  const muscle = std('#a45a42', { rough: 0.8 });
+  const skin = std('#b86e52', { emissive: '#3a0f06', ei: 0.22, rough: 0.55, sheen: 0.8, sheenColor: '#ffb08a', clearcoat: 0.25 });
+  const muscle = std('#a45a42', { rough: 0.6, sheen: 0.8, sheenColor: '#ff9a7a', clearcoat: 0.25 });
   const g = new THREE.Group();
   // 前臂：幾段錯開的肌肉
   const fore = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.55, 2.8, 14), skin);
@@ -100,10 +106,10 @@ export function makeTitanArm() {
 /** 單手劍：刀刃沿 +y，劍柄在原點。dark=true 是黑色的劍，否則是白藍色的劍。 */
 export function makeSword(dark = true) {
   const blade = dark
-    ? std('#1a1c24', { emissive: '#1b3cff', ei: 0.35, rough: 0.25, metal: 0.9 })
-    : std('#e6f6ff', { emissive: '#5fc8ff', ei: 0.45, rough: 0.2, metal: 0.8 });
-  const guardMat = std(dark ? '#2b2f3a' : '#b8c6d8', { rough: 0.3, metal: 0.9 });
-  const gripMat = std('#141418', { rough: 0.9 });
+    ? std('#22252f', { emissive: '#1b3cff', ei: 0.3, rough: 0.12, metal: 1, clearcoat: 1, fade: true })
+    : std('#eef8ff', { emissive: '#5fc8ff', ei: 0.35, rough: 0.08, metal: 1, clearcoat: 1, fade: true });
+  const guardMat = std(dark ? '#3a3f4c' : '#c8d4e4', { rough: 0.18, metal: 1, clearcoat: 0.6, fade: true });
+  const gripMat = std('#141418', { rough: 0.7, sheen: 0.6, sheenColor: '#5a5a70', fade: true });
   const g = new THREE.Group();
   // 刀刃：扁平、尖端收窄
   const shape = new THREE.Shape();
@@ -131,7 +137,7 @@ export function makeSword(dark = true) {
 
 /** 有齒紋邊緣的硬幣（平放時面朝 +y）。 */
 export function makeCoin() {
-  const gold = std('#c8952e', { emissive: '#3a2200', ei: 0.1, rough: 0.35, metal: 0.95 });
+  const gold = std('#e0a93a', { emissive: '#3a2200', ei: 0.08, rough: 0.16, metal: 1, clearcoat: 0.6 });
   const g = new THREE.Group();
   g.add(new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 0.03, 40), gold));
   for (let i = 0; i < 40; i++) {

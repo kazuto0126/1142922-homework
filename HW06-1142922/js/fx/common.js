@@ -190,9 +190,11 @@ export function liveParticles(stage) {
 
 // ───────────────────────── 短暫物件 ─────────────────────────
 
+// 發光物件的顏色調成 HDR（亮度 > 1），只有它們會泛光，被燈照亮的棋盤不會
+export const GLOW = 1.4;
 export function glowMat(color, opacity = 1) {
   return new THREE.MeshBasicMaterial({
-    color, transparent: true, opacity, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, toneMapped: false,
+    color: new THREE.Color(color).multiplyScalar(GLOW), transparent: true, opacity, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, toneMapped: false,
   });
 }
 
@@ -257,12 +259,26 @@ export function ring(stage, pos, { color = '#ffffff', radius = 1.6, life = 0.5, 
   });
 }
 
-/** 瞬間的點光源閃光。 */
+/**
+ * 瞬間的點光源閃光。用舞台的固定燈池（不新增燈），放招時才不會因為燈的數量改變而重新編譯材質、卡一下。
+ */
 export function flash(stage, pos, { color = '#ffffff', intensity = 40, distance = 9, life = 0.35, delay = 0 } = {}) {
-  const light = new THREE.PointLight(color, intensity, distance, 2);
-  light.position.copy(pos);
-  light.position.y += 1;
-  return spawn(stage, light, { life, delay, update(k) { light.intensity = intensity * Math.pow(1 - k, 2); } });
+  let slot = null;
+  const at = pos.clone();
+  at.y += 1;
+  return spawn(stage, new THREE.Object3D(), {
+    life, delay,
+    update(k) {
+      if (!slot) {
+        slot = stage.borrowLight();
+        slot.light.color.set(color);
+        slot.light.distance = distance;
+        slot.light.position.copy(at);
+      }
+      if (!slot.owns()) return; // 燈已經被更新的閃光拿走了
+      slot.light.intensity = k >= 1 ? 0 : intensity * Math.pow(1 - k, 2);
+    },
+  });
 }
 
 /** 發光的球體（聚氣、爆炸核心）。grow：[開始大小, 結束大小]。 */

@@ -18,7 +18,7 @@ export default function (fx) {
   }
 
   // 巨拳：白色的橡膠拳，周圍纏著雲狀的能量
-  const fist = makeFist(std('#f3ede2', { emissive: '#3a3020', ei: 0.25, rough: 0.8 }), { arm: 7 });
+  const fist = makeFist(std('#f3ede2', { emissive: '#3a3020', ei: 0.2, rough: 0.5, sheen: 1, sheenColor: '#fff6e0', clearcoat: 0.3, fade: true }), { arm: 7 });
   const aura = new THREE.Mesh(new THREE.SphereGeometry(1.0, 32, 20), energyMaterial(stage, { c1: '#ffffff', c2: '#e8dcc0', scroll: 2, scale: [4, 4], fresnel: 1.5, threshold: 0.35, opacity: 0.6 }));
   aura.scale.set(1.25, 1.0, 1.1);
   aura.position.y = 0.1;

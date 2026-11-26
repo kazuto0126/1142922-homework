@@ -37,6 +37,8 @@
     const { tileCanvas, loadEmblems } = await import('./js/assets/emblems.js');
     const emblems = await loadEmblems();
     WORLDS.forEach(w => stage.setWorldImage(w.cell, tileCanvas(w, emblems[w.cell])));
+    const { fxWarmupObjects } = await import('./js/fx/warmup.js');
+    await stage.warmup(fxWarmupObjects(stage));
     const audio = createAudio(DEFAULT_SETTINGS);
     document.addEventListener('pointerdown', () => audio.unlock());
     const performer = createPerformer({ stage, audio, heroImages, getSettings: () => ({ ...DEFAULT_SETTINGS }) });
@@ -63,15 +65,41 @@
     // 開發用：把目前的 3D 畫面存成圖（POST 給 tools/serve.mjs），在畫完一幀之後立刻抓
     // 截圖時改用手動推進（瀏覽器在預覽視窗隱藏時會暫停 requestAnimationFrame）
     let tick = null;
-    window.__shot = name => {
+    window.__shot = (name, w = 640) => {
       tick();
       const src = stage.renderer.domElement;
       const c = document.createElement('canvas');
-      c.width = 640;
-      c.height = Math.round(640 * src.height / src.width);
+      c.width = w;
+      c.height = Math.round(w * src.height / src.width);
       c.getContext('2d').drawImage(src, 0, 0, c.width, c.height);
       return fetch(`/__shot?name=${encodeURIComponent(name)}`, { method: 'POST', body: c.toDataURL('image/jpeg', 0.8) }).catch(() => {});
     };
+    /**
+     * 效能量測：依序放每一招，量每一幀「更新 + GPU 畫完」的時間，列出超過 30ms 的卡頓幀與新編譯的著色器數。
+     * 結果放在 window.__perfOut（最後一筆是 END）。
+     */
+    window.__perf = async ({ factions = ['gojo', 'sukuna'], cells = [0, 1, 2, 3, 4, 5, 6, 7, 8], n = 50, setup = null } = {}) => {
+      window.__perfOut = [];
+      const gl = stage.renderer.getContext(), px = new Uint8Array(4);
+      const silent = { sfx() {}, clip() {} };
+      const t = stage.manualTick(true);
+      for (const f of factions) for (const c of cells) {
+        const p0 = stage.renderer.info.programs.length;
+        stage.clearBoard();
+        if (setup) setup(c, f); else { stage.placePiece(c, f); SKILLS[c](makeFx({ stage, cell: c, faction: f, tier: 'key', audio: silent, world: WORLDS[c], pal: palette(f) })); }
+        const times = [];
+        for (let i = 0; i < n; i++) {
+          await new Promise(r => setTimeout(r, 0));
+          const t0 = performance.now(); t(); gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px); times.push(performance.now() - t0);
+        }
+        const big = times.map((v, i) => [i, v]).filter(([, v]) => v > 30).map(([i, v]) => i + ':' + v.toFixed(0));
+        const sorted = [...times].sort((a, b) => a - b);
+        window.__perfOut.push(`${f}${c}: med ${sorted[n >> 1].toFixed(1)} p90 ${sorted[Math.floor(n * 0.9)].toFixed(1)} spikes[${big.join(' ')}] progs ${stage.renderer.info.programs.length - p0}`);
+      }
+      stage.manualTick(false);
+      window.__perfOut.push('END');
+    };
+
     /** 播一次技能，並在指定的毫秒數各存一張圖。 */
     window.__shots = async (prefix, times, opts = {}) => {
       tick = stage.manualTick(true);
@@ -82,7 +110,7 @@
         const t0 = performance.now();
         for (const t of times) {
           await new Promise(r => setTimeout(r, Math.max(0, t - (performance.now() - t0))));
-          await window.__shot(`${prefix}-${t}`);
+          await window.__shot(`${prefix}-${t}`, opts.width);
         }
       } finally {
         clearInterval(timer);
