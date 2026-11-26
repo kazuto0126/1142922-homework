@@ -95,6 +95,17 @@ test('stop：所有聲音都停', async () => {
   assert.ok(synth.endings.every(e => e.stopped));
 });
 
+test('解碼後的歌最多只留 3 首在記憶體（手機記憶體有限）', async () => {
+  const ctx = fakeCtx(), synth = fakeSynth();
+  const fetched = [];
+  const mm = createMusicManager({ ctx, dest: {}, synth, paths, fetchBuffer: p => { fetched.push(p); return Promise.resolve({ p }); } });
+  for (const c of [0, 1, 2, 3, 4]) await mm.playCell(c);
+  await mm.playCell(4); // 最近用過的：不用重新下載
+  assert.equal(fetched.filter(p => p.endsWith('cell4.mp3')).length, 1);
+  await mm.playCell(0); // 已經被擠掉：要重新下載
+  assert.equal(fetched.filter(p => p.endsWith('cell0.mp3')).length, 2);
+});
+
 test('結局曲：victory / defeat / draw 交給合成器', async () => {
   const ctx = fakeCtx(), synth = fakeSynth();
   const mm = createMusicManager({ ctx, dest: {}, synth, paths, fetchBuffer: () => Promise.reject(new Error('x')) });

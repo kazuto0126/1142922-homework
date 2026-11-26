@@ -3,7 +3,7 @@ import { createStage, supportsWebGL } from './stage/stage.js';
 import { createMatch, outcomeFor } from './core/match.js';
 import { EMPTY, X } from './core/rules.js';
 import { WORLDS, FACTIONS } from './core/worlds.js';
-import { isClick } from './core/pointer.js';
+import { createTapTracker } from './core/pointer.js';
 import { createStats } from './core/stats.js';
 import { loadSettings, saveSettings } from './core/settings.js';
 import { IMAGES } from './assets/manifest.js';
@@ -192,16 +192,18 @@ async function boot() {
     && !app.match.isCpuTurn() && !stage.isCinematic;
 
   // ── 點擊 / 拖曳 ──
-  let down = null;
+  // 只有「單指 / 左鍵、沒拖動、沒有第二根手指」的放開才算下棋（見 core/pointer.js）
+  const taps = createTapTracker();
   // 演出中：點一下（畫面任何地方）或按空白鍵就跳過；這次點擊不會被當成下棋
   canvas.addEventListener('pointerdown', e => {
     if (performer.busy) {
       performer.skip();
-      down = null;
+      taps.reset();
       return;
     }
-    down = { x: e.clientX, y: e.clientY };
+    taps.down(e);
   });
+  canvas.addEventListener('pointercancel', e => taps.cancel(e));
   document.addEventListener('keydown', e => {
     if (e.code === 'Space' && performer.busy) {
       e.preventDefault();
@@ -209,18 +211,19 @@ async function boot() {
     }
   });
   canvas.addEventListener('pointerup', e => {
-    const d = down;
-    down = null;
-    if (!d || !isClick(d, { x: e.clientX, y: e.clientY }) || !canPlay()) return;
+    if (!taps.up(e) || !canPlay()) return;
     const cell = stage.pickCell(e.clientX, e.clientY);
     if (cell >= 0 && app.match.board[cell] === EMPTY) humanMove(cell);
   });
 
   let lastHover = -1;
   canvas.addEventListener('pointermove', e => {
+    taps.move(e);
     if (e.pointerType !== 'mouse' || app.screen !== 'playing' || !canPlay()) {
       hint.hidden = true;
       stage.setHover(-1);
+      lastHover = -1;
+      canvas.style.cursor = 'grab';
       return;
     }
     const cell = stage.pickCell(e.clientX, e.clientY);

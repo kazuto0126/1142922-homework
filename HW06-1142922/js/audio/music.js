@@ -12,13 +12,19 @@ export function createMusicManager({ ctx, dest, synth, paths, fetchBuffer, avail
   let titleTimer = null;
   const buffers = new Map();
 
+  // 解碼後的歌很佔記憶體（一首約 15 MB），最多只留最近用過的 3 首
+  const CACHE_MAX = 3;
   function load(path) {
-    if (!buffers.has(path)) {
-      const p = fetchBuffer(path);
-      buffers.set(path, p);
+    let p = buffers.get(path);
+    if (p) {
+      buffers.delete(path); // 移到最後面 = 最近用過
+    } else {
+      p = fetchBuffer(path);
       p.catch(() => buffers.delete(path));
     }
-    return buffers.get(path);
+    buffers.set(path, p);
+    while (buffers.size > CACHE_MAX) buffers.delete(buffers.keys().next().value);
+    return p;
   }
 
   function fadeGain() {
