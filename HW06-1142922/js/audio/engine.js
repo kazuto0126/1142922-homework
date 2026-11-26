@@ -8,6 +8,8 @@ import { createMusicManager } from './music.js';
 export function createAudio(initialSettings) {
   let settings = { ...initialSettings };
   let ctx = null;
+  const clipFiles = new Map();   // 路徑 → 下載中的檔案
+  const clipBuffers = new Map(); // 路徑 → 解碼好的聲音
   let sfxBus = null;
   let musicBus = null;
   let music = null;
@@ -62,19 +64,43 @@ export function createAudio(initialSettings) {
     duck(on) { ducked = !!on; applyGains(); },
     sfx(name, opts) { if (ready()) synth.playSfx(ctx, sfxBus, name, opts); },
     /** 播一段音檔（例如語音）到音效匯流排；沒有這個檔案就什麼都不做。 */
+    /** 先把語音檔下載好（還不解碼，不需要等使用者點擊）。 */
+    preloadClip(path) {
+      if (!isAvailable(path) || clipFiles.has(path)) return;
+      clipFiles.set(path, fetch(path).then(r => (r.ok ? r.arrayBuffer() : null)).catch(() => null));
+    },
+    /**
+     * 播放一段語音 / 音效檔。回傳 Promise：真的開始播放時 resolve 成 { stop(ms), duration }，播不了就是 null。
+     */
     async clip(path, gain = 1) {
-      if (!ready() || !isAvailable(path)) return;
+      if (!ready() || !isAvailable(path)) return null;
       try {
-        const r = await fetch(path);
-        if (!r.ok) return;
-        const buf = await ctx.decodeAudioData(await r.arrayBuffer());
+        if (!clipBuffers.has(path)) {
+          this.preloadClip(path);
+          const data = await clipFiles.get(path);
+          if (!data) return null;
+          clipBuffers.set(path, await ctx.decodeAudioData(data.slice(0)));
+        }
+        const buf = clipBuffers.get(path);
         const src = ctx.createBufferSource();
         const g = ctx.createGain();
         g.gain.value = gain;
         src.buffer = buf;
         src.connect(g).connect(sfxBus);
         src.start();
-      } catch { /* 語音不是必要的 */ }
+        return {
+          duration: buf.duration,
+          stop(ms = 300) {
+            const t = ctx.currentTime;
+            g.gain.cancelScheduledValues(t);
+            g.gain.setValueAtTime(g.gain.value, t);
+            g.gain.linearRampToValueAtTime(0, t + ms / 1000);
+            try { src.stop(t + ms / 1000 + 0.05); } catch { /* 已經停了 */ }
+          },
+        };
+      } catch {
+        return null; // 語音不是必要的
+      }
     },
     music: {
       playCell: cell => (music ? music.playCell(cell) : Promise.resolve()),

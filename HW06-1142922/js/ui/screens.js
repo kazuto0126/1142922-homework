@@ -28,11 +28,26 @@ export function createScreens(root, handlers, { leaderImages }) {
   // ── 標題 ──
   function showTitle() {
     const el = layer('title');
-    // 封面只有一個大大的 START（使用者要求）；角落留學號作業標籤和素材來源
+    // 封面：白色的系統開機畫面（原創設計），中間一顆很明顯的英文 START，按下去才潛入遊戲
+    const checks = ['NEURAL INTERFACE', 'VISUAL OUTPUT', 'AUDIO OUTPUT', 'MOTOR CONTROL', 'BOARD 3×3 GRID'];
     el.innerHTML = `
-      <div class="tag">1142922 HW06</div>
-      <button class="start-big" data-act="start">START</button>
-      <button class="link credits-link" data-act="credits">素材來源</button>`;
+      <div class="boot">
+        <div class="boot-grid"></div>
+        <div class="boot-rings"><i></i><i></i><i></i><i></i></div>
+        <header class="boot-head"><span>SYSTEM BOOT</span><span>1142922 · HW06</span></header>
+        <ul class="boot-checks">
+          ${checks.map((c, i) => `<li style="--d:${0.25 + i * 0.28}s"><span>${c}</span><b>OK</b></li>`).join('')}
+          <li class="ready" style="--d:${0.25 + checks.length * 0.28}s"><span>SESSION</span><b>READY</b></li>
+        </ul>
+        <div class="boot-center">
+          <div class="boot-title">TTT ANIME</div>
+          <button class="boot-start" data-act="start" aria-label="START">
+            <span class="boot-start-main">START</span>
+            <span class="boot-start-sub">CLICK TO LINK START</span>
+          </button>
+        </div>
+        <button class="link credits-link" data-act="credits">素材來源</button>
+      </div>`;
     el.querySelector('[data-act=start]').onclick = h('onStart');
     el.querySelector('[data-act=credits]').onclick = () => openCredits();
     only('title');

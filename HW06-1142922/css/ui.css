@@ -429,16 +429,18 @@ h2 { margin: 0; font-size: clamp(24px, 5vw, 36px); letter-spacing: 0.15em; }
 .credits-link { position: absolute; bottom: 16px; }
 
 /* 登入動畫（按下 START 之後） */
-.login { position: fixed; inset: 0; z-index: 60; background: #000; cursor: pointer; transition: opacity 0.4s; }
+.login { position: fixed; inset: 0; z-index: 60; background: #fff; cursor: pointer; transition: opacity 0.4s; }
 .login canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
 .login.out { opacity: 0; pointer-events: none; }
 .login-text { position: absolute; inset: 0; display: grid; place-items: center; pointer-events: none; }
 .login-text .ls {
   font-family: var(--jp-font); font-size: clamp(36px, 8vw, 96px); letter-spacing: 0.25em; color: #fff;
   text-shadow: 0 0 18px #8fd8ff, 0 0 40px #4a7bff;
-  clip-path: inset(0 100% 0 0); animation: ls-type 0.5s steps(10) 0.1s forwards;
+  clip-path: inset(0 100% 0 0);
 }
-.login.tunnel .login-text .ls { animation: ls-type 0.5s steps(10) 0.1s forwards, ls-out 0.5s ease-in 0.6s forwards; }
+/* 跟著語音打字（約 0.6 秒），隧道開始時往鏡頭衝出去 */
+.login.typing .login-text .ls { animation: ls-type 0.6s steps(10) forwards; }
+.login.tunnel .login-text .ls { clip-path: inset(0 0 0 0); animation: ls-out 0.55s ease-in forwards; }
 @keyframes ls-type { to { clip-path: inset(0 0 0 0); } }
 @keyframes ls-out { to { opacity: 0; transform: scale(2.4); filter: blur(6px); } }
 .login-flash { position: absolute; inset: 0; background: #fff; opacity: 0; pointer-events: none; transition: opacity 0.25s; }
@@ -450,3 +452,71 @@ h2 { margin: 0; font-size: clamp(24px, 5vw, 36px); letter-spacing: 0.15em; }
 }
 .login-sub small { font-size: 0.45em; letter-spacing: 0.4em; color: #4a5a8a; }
 .login.welcome .login-sub { opacity: 1; color: #fff; text-shadow: 0 0 20px #8fd8ff; }
+
+/* ── 封面：白色的系統開機畫面（原創設計） ── */
+.boot {
+  position: fixed; inset: 0; z-index: 5; overflow: hidden;
+  background: radial-gradient(ellipse at 50% 45%, #ffffff 0%, #f1f4f9 55%, #dfe5ef 100%);
+  color: #2a3550; font-family: Consolas, 'Courier New', monospace;
+  animation: boot-in 0.8s ease-out both;
+}
+@keyframes boot-in { from { opacity: 0; filter: brightness(1.6) blur(6px); } }
+.boot-grid {
+  position: absolute; inset: -2px; pointer-events: none; opacity: 0.55;
+  background-image: linear-gradient(#c9d3e3 1px, transparent 1px), linear-gradient(90deg, #c9d3e3 1px, transparent 1px);
+  background-size: 48px 48px;
+  mask-image: radial-gradient(ellipse at center, transparent 18%, #000 75%);
+  -webkit-mask-image: radial-gradient(ellipse at center, transparent 18%, #000 75%);
+}
+.boot-rings { position: absolute; left: 50%; top: 46%; width: 0; height: 0; pointer-events: none; }
+.boot-rings i {
+  position: absolute; border-radius: 50%; border: 1.5px solid #9fb2d4; transform: translate(-50%, -50%);
+  animation: ring-spin linear infinite;
+}
+.boot-rings i:nth-child(1) { width: min(70vw, 560px); height: min(70vw, 560px); border-style: dashed; opacity: 0.55; animation-duration: 40s; }
+.boot-rings i:nth-child(2) { width: min(58vw, 460px); height: min(58vw, 460px); border-color: #7fa0e0 transparent #7fa0e0 transparent; border-width: 3px; animation-duration: 9s; animation-direction: reverse; }
+.boot-rings i:nth-child(3) { width: min(46vw, 360px); height: min(46vw, 360px); opacity: 0.6; animation-duration: 22s; border-style: dotted; border-width: 3px; }
+.boot-rings i:nth-child(4) { width: min(82vw, 680px); height: min(82vw, 680px); border-color: transparent #b9c7e2; border-width: 1px; animation-duration: 16s; }
+@keyframes ring-spin { to { transform: translate(-50%, -50%) rotate(360deg); } }
+
+.boot-head {
+  position: absolute; left: 0; right: 0; top: 0; display: flex; justify-content: space-between;
+  padding: 18px clamp(16px, 4vw, 40px); font-size: 13px; letter-spacing: 0.3em; color: #5a6a8c;
+  border-bottom: 1px solid #ccd5e4; background: rgba(255,255,255,0.6);
+}
+.boot-checks {
+  position: absolute; left: clamp(16px, 4vw, 48px); top: 86px; margin: 0; padding: 0; list-style: none;
+  font-size: clamp(11px, 1.3vw, 14px); letter-spacing: 0.18em; width: min(320px, 70vw);
+}
+.boot-checks li {
+  display: flex; justify-content: space-between; gap: 12px; padding: 5px 0; border-bottom: 1px dashed #d3dbe8;
+  opacity: 0; animation: check-in 0.3s ease-out var(--d) forwards;
+}
+.boot-checks b { color: #2f7de0; font-weight: 700; }
+.boot-checks li.ready b { color: #19a36b; }
+@keyframes check-in { from { opacity: 0; transform: translateX(-12px); } to { opacity: 1; transform: none; } }
+
+.boot-center {
+  position: absolute; left: 50%; top: 46%; transform: translate(-50%, -50%);
+  display: flex; flex-direction: column; align-items: center; gap: 18px; width: 92vw;
+}
+.boot-title { font-family: var(--jp-font); font-size: clamp(14px, 2vw, 20px); letter-spacing: 0.6em; color: #6b7a99; margin-right: -0.6em; }
+.boot-start {
+  display: flex; flex-direction: column; align-items: center; gap: 6px; cursor: pointer;
+  padding: clamp(14px, 2.4vw, 26px) clamp(40px, 8vw, 90px);
+  background: linear-gradient(180deg, #ffffff, #eef3fb); border: 3px solid #2f6fe0; border-radius: 999px;
+  box-shadow: 0 0 0 8px rgba(47,111,224,0.12), 0 14px 40px rgba(30,60,120,0.25);
+  animation: start-glow 1.6s ease-in-out infinite, start-appear 0.5s cubic-bezier(.2,1.4,.4,1) 0.2s both;
+  transition: transform 0.15s, background 0.15s;
+}
+.boot-start:hover, .boot-start:focus-visible { transform: scale(1.05); background: #ffffff; outline: none; }
+.boot-start:active { transform: scale(0.97); }
+.boot-start-main { font-family: var(--jp-font); font-size: clamp(56px, 12vw, 132px); line-height: 1; letter-spacing: 0.12em; margin-right: -0.12em; color: #0f1f45; }
+.boot-start-sub { font-size: clamp(12px, 1.6vw, 17px); letter-spacing: 0.35em; margin-right: -0.35em; color: #2f6fe0; font-weight: 700; }
+@keyframes start-glow { 50% { box-shadow: 0 0 0 16px rgba(47,111,224,0.06), 0 14px 50px rgba(47,111,224,0.4); } }
+@keyframes start-appear { from { opacity: 0; transform: scale(0.8); } }
+.boot .credits-link { position: absolute; left: 50%; transform: translateX(-50%); bottom: 16px; color: #5a6a8c; }
+/* 按下 START 後：白色介面往中心收、變亮，接上登入動畫 */
+.boot.diving { animation: boot-dive 0.45s ease-in forwards; }
+@keyframes boot-dive { to { opacity: 0; transform: scale(1.15); filter: brightness(1.4) blur(4px); } }
+@media (max-width: 640px) { .boot-checks { top: 70px; } .boot-center { top: 58%; } .boot-rings { top: 58%; } }

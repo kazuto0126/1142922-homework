@@ -27,6 +27,8 @@ export const AVAILABLE = new Set([
   ...IMAGES.hero,
   // 每格的主題曲（tools/prepare-music.mjs 產生：副歌 44 秒、去人聲、-18 LUFS）
   ...MUSIC.cell,
+  // 登入語音 + 潛行音效（使用者提供的檔案，剪成 7 秒、音量對齊其他音效）
+  SFX.linkStart,
 ]);
 
 export const isAvailable = path => !!path && AVAILABLE.has(path);

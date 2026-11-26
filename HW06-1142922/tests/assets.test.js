@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { AVAILABLE, IMAGES, MUSIC } from '../js/assets/manifest.js';
+import { AVAILABLE, IMAGES, MUSIC, SFX } from '../js/assets/manifest.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const onDisk = dir => (fs.existsSync(path.join(root, dir)) ? fs.readdirSync(path.join(root, dir)).map(f => `${dir}/${f}`) : []);
@@ -13,11 +13,11 @@ test('可用清單裡的檔案都真的存在', () => {
 });
 
 test('assets 裡的圖片和音樂都有列進可用清單（不然遊戲不會用到）', () => {
-  for (const p of [...onDisk('assets/img'), ...onDisk('assets/music')]) assert.ok(AVAILABLE.has(p), p);
+  for (const p of [...onDisk('assets/img'), ...onDisk('assets/music'), ...onDisk('assets/sfx')]) assert.ok(AVAILABLE.has(p), p);
 });
 
 test('可用清單只包含 manifest 裡用到的路徑', () => {
-  const known = new Set([...Object.values(IMAGES.leader), ...IMAGES.hero, ...MUSIC.cell]);
+  const known = new Set([...Object.values(IMAGES.leader), ...IMAGES.hero, ...MUSIC.cell, ...Object.values(SFX)]);
   for (const p of AVAILABLE) assert.ok(known.has(p), p);
 });
 

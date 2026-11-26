@@ -43,6 +43,7 @@ async function boot() {
   const stats = createStats(storage);
   const stage = createStage(canvas, { quality: settings.quality });
   const audio = createAudio(settings);
+  audio.preloadClip(SFX.linkStart); // 封面時先把語音下載好，按下 START 就能立刻播
 
   // 任何按鈕都有點擊音效；第一次點擊時解鎖音訊（瀏覽器規定）
   document.addEventListener('pointerdown', () => { audio.unlock(); }, { capture: true });
@@ -71,14 +72,17 @@ async function boot() {
 
   const screens = createScreens(document.getElementById('ui'), {
     onStart: async () => {
+      if (app.diving) return; // 連點只算一次
+      app.diving = true;
       await audio.unlock();
-      audio.music.playCell(SAO_CELL); // 從按下 START 開始就是刀劍神域的歌
-      audio.sfx('charge', { pitch: 0.6 });
+      document.querySelector('.boot')?.classList.add('diving');
       // 登入動畫蓋住整個畫面時，在棋盤上靜音預演幾招：顯示卡第一次畫這些特效會卡一下，先在看不到的時候卡掉
       const stopRehearsal = rehearse(stage);
-      await playLogin({ onVoice: () => audio.clip(SFX.linkStart, 1) });
+      // 「リンク・スタート」語音 + 潛入音效（使用者提供的原版音檔），動畫跟著聲音的時間點走
+      await playLogin({ startAudio: () => audio.clip(SFX.linkStart, 1) });
       stopRehearsal();
-      audio.sfx('whoosh', { pitch: 0.8 });
+      app.diving = false;
+      audio.music.playCell(SAO_CELL); // 潛入完成後才開始刀劍神域的歌
       goMode();
     },
     onMode: mode => { app.mode = mode; startMatch(); },
