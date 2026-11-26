@@ -254,9 +254,7 @@ export function drawEmblem(g, cell, cx, cy, r, color) {
   g.restore();
 }
 
-const FONT = "'Microsoft JhengHei', 'PingFang TC', 'Noto Sans TC', sans-serif";
-
-/** 一格的地板貼圖：代表色漸層 + 斜紋 + 標誌 + 作品名。emblem 是現成標誌圖（可省略）。 */
+/** 一格的地板貼圖：代表色漸層 + 斜紋 + 標誌（不寫作品名，使用者要求）。emblem 是現成標誌圖（可省略）。 */
 export function tileCanvas(world, emblem = null, size = 512) {
   const c = document.createElement('canvas');
   c.width = c.height = size;
@@ -286,7 +284,7 @@ export function tileCanvas(world, emblem = null, size = 512) {
   g.globalAlpha = 1;
 
   // 標誌後面墊一圈暗色光暈，讓任何顏色的標誌都看得清楚
-  const halo = g.createRadialGradient(s / 2, s * 0.44, 0, s / 2, s * 0.44, s * 0.4);
+  const halo = g.createRadialGradient(s / 2, s / 2, 0, s / 2, s / 2, s * 0.42);
   halo.addColorStop(0, 'rgba(0,0,0,0.45)');
   halo.addColorStop(1, 'rgba(0,0,0,0)');
   g.fillStyle = halo;
@@ -299,23 +297,14 @@ export function tileCanvas(world, emblem = null, size = 512) {
     const st = EMBLEM_STYLE[world.cell];
     const iw = emblem.naturalWidth || emblem.width, ih = emblem.naturalHeight || emblem.height;
     const box = s * st.size;
-    const k = Math.min(box / iw, (s * 0.62) / ih);
+    const k = Math.min(box / iw, (s * 0.7) / ih);
     const w = iw * k, h = ih * k;
     const src = st.tint ? tinted(emblem, w, h, st.tint) : emblem;
-    g.drawImage(src, (s - w) / 2, s * 0.44 - h / 2, w, h);
+    g.drawImage(src, (s - w) / 2, (s - h) / 2, w, h);
   } else {
-    drawEmblem(g, world.cell, s / 2, s * 0.44, s * 0.3, mix(world.color, '#ffffff', 0.15));
+    drawEmblem(g, world.cell, s / 2, s / 2, s * 0.32, mix(world.color, '#ffffff', 0.15));
   }
   g.shadowBlur = 0;
-
-  // 作品名
-  g.font = `900 ${Math.round(s * 0.075)}px ${FONT}`;
-  g.textAlign = 'center';
-  g.textBaseline = 'middle';
-  g.fillStyle = 'rgba(255,255,255,0.92)';
-  g.shadowColor = 'rgba(0,0,0,0.8)';
-  g.shadowBlur = s * 0.02;
-  g.fillText(world.work, s / 2, s * 0.86, s * 0.84);
   return c;
 }
 
