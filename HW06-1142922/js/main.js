@@ -26,7 +26,6 @@ function safeStorage() {
 }
 
 const canvas = document.getElementById('stage');
-const hint = document.getElementById('hint');
 
 if (!supportsWebGL()) {
   document.body.innerHTML = '<div class="fatal">你的瀏覽器不支援 WebGL，請改用最新版的 Chrome 或 Edge。</div>';
@@ -232,7 +231,6 @@ async function boot() {
   canvas.addEventListener('pointermove', e => {
     taps.move(e);
     if (e.pointerType !== 'mouse' || app.screen !== 'playing' || !canPlay()) {
-      hint.hidden = true;
       stage.setHover(-1);
       lastHover = -1;
       canvas.style.cursor = 'grab';
@@ -244,17 +242,9 @@ async function boot() {
     lastHover = free ? cell : -1;
     stage.setHover(lastHover);
     canvas.style.cursor = free ? 'pointer' : 'grab';
-    if (cell >= 0) {
-      const w = WORLDS[cell];
-      hint.innerHTML = `<b>${w.work}</b><span>${w.heroZh}</span>`;
-      hint.style.left = `${e.clientX}px`;
-      hint.style.top = `${e.clientY}px`;
-      hint.hidden = false;
-    } else {
-      hint.hidden = true;
-    }
+    // 滑鼠移到格子上不顯示作品和角色名字（使用者要求），只有格子浮起來和音效
   });
-  canvas.addEventListener('pointerleave', () => { hint.hidden = true; stage.setHover(-1); });
+  canvas.addEventListener('pointerleave', () => stage.setHover(-1));
 
   goTitle();
 

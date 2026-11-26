@@ -49,22 +49,6 @@ html, body {
 }
 
 
-#hint {
-  position: fixed;
-  z-index: 30;
-  pointer-events: none;
-  padding: 6px 10px;
-  border-radius: 8px;
-  background: var(--panel);
-  border: 1px solid var(--line);
-  font-size: 14px;
-  white-space: nowrap;
-  transform: translate(14px, 14px);
-}
-
-#hint b { color: #fff; }
-#hint span { color: var(--muted); margin-left: 6px; }
-
 .fatal {
   position: fixed;
   inset: 0;
