@@ -294,7 +294,7 @@ export function tileCanvas(world, emblem = null, size = 512) {
   g.shadowColor = mix(world.color, '#ffffff', 0.3);
   g.shadowBlur = s * 0.06;
   if (emblem) {
-    const st = EMBLEM_STYLE[world.cell];
+    const st = EMBLEM_STYLE[world.id];
     const iw = emblem.naturalWidth || emblem.width, ih = emblem.naturalHeight || emblem.height;
     const box = s * st.size;
     const k = Math.min(box / iw, (s * 0.7) / ih);
@@ -302,7 +302,7 @@ export function tileCanvas(world, emblem = null, size = 512) {
     const src = st.tint ? tinted(emblem, w, h, st.tint) : emblem;
     g.drawImage(src, (s - w) / 2, (s - h) / 2, w, h);
   } else {
-    drawEmblem(g, world.cell, s / 2, s / 2, s * 0.32, mix(world.color, '#ffffff', 0.15));
+    drawEmblem(g, world.id, s / 2, s / 2, s * 0.32, mix(world.color, '#ffffff', 0.15));
   }
   g.shadowBlur = 0;
   return c;

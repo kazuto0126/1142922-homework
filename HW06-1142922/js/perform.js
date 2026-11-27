@@ -41,7 +41,9 @@ export function createPerformer({ stage, audio, heroImages, leaderImages, getSet
       stage.placeStandee(cell, faction, heroImages[cell]);
       ring(stage, fx.pos, { color: pal.primary, radius: 1.2, life: 0.45 });
       audio.sfx('place');
-      audio.music.playCell(cell);
+      // 整場都是刀劍神域的歌；只有致勝關鍵的一手（会心の一手、決着）才換成那一格的歌，
+      // 而且一直播到合體技、領域對決、結局，下一局再回到刀劍神域
+      if (tier === 'key' || tier === 'finish') audio.music.playCell(cell);
     };
 
     const handlers = {

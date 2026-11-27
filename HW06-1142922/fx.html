@@ -33,10 +33,10 @@
     const period = Number(q.get('period') ?? 2500);
 
     const stage = createStage(document.getElementById('stage'), { quality: q.get('quality') === 'low' ? 'low' : 'high' });
-    const heroImages = await Promise.all(WORLDS.map(w => loadImage(IMAGES.hero[w.cell], { kind: 'hero', label: w.heroZh, sub: w.work, color: w.color })));
+    const heroImages = await Promise.all(WORLDS.map(w => loadImage(IMAGES.hero[w.id], { kind: 'hero', label: w.heroZh, sub: w.work, color: w.color })));
     const { tileCanvas, loadEmblems } = await import('./js/assets/emblems.js');
     const emblems = await loadEmblems();
-    WORLDS.forEach(w => stage.setWorldImage(w.cell, tileCanvas(w, emblems[w.cell])));
+    WORLDS.forEach(w => stage.setWorldImage(w.cell, tileCanvas(w, emblems[w.id])));
     const { fxWarmupObjects } = await import('./js/fx/warmup.js');
     await stage.warmup(fxWarmupObjects(stage));
     const audio = createAudio(DEFAULT_SETTINGS);

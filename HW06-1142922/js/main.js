@@ -18,7 +18,7 @@ import { liveParticles } from './fx/common.js';
 import { fxWarmupObjects, rehearse } from './fx/warmup.js';
 
 const CPU_THINK_MS = 400;
-const SAO_CELL = 7; // 刀劍神域那一格的歌，當作標題與選單的背景音樂
+const SAO_CELL = WORLDS.find(w => w.work === '刀劍神域').cell; // 刀劍神域那一格的盤面位置；它的歌是整場的背景音樂
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 function safeStorage() {
@@ -50,12 +50,12 @@ async function boot() {
 
   // ── 素材 ──
   const [heroImages, leaderList] = await Promise.all([
-    Promise.all(WORLDS.map(w => loadImage(IMAGES.hero[w.cell], { kind: 'hero', label: w.heroZh, sub: w.work, color: w.color }))),
+    Promise.all(WORLDS.map(w => loadImage(IMAGES.hero[w.id], { kind: 'hero', label: w.heroZh, sub: w.work, color: w.color }))),
     Promise.all(['sukuna', 'gojo'].map(f => loadImage(IMAGES.leader[f], { kind: 'leader', label: FACTIONS[f].nameZh, sub: FACTIONS[f].nameJa, color: FACTIONS[f].secondary }))),
   ]);
   const leaderImages = { sukuna: leaderList[0], gojo: leaderList[1] };
   const emblems = await loadEmblems();
-  WORLDS.forEach(w => stage.setWorldImage(w.cell, tileCanvas(w, emblems[w.cell])));
+  WORLDS.forEach(w => stage.setWorldImage(w.cell, tileCanvas(w, emblems[w.id])));
   // 在封面畫面時先把特效的著色器編譯好（不等它，背景進行）
   stage.warmup(fxWarmupObjects(stage));
 
@@ -149,7 +149,7 @@ async function boot() {
     await performer.performMove(event);
   }
 
-  /** 對局結束：先記戰績、換結局曲，再播合體技與結局演出，最後顯示結局畫面。 */
+  /** 對局結束：先記戰績，播合體技與結局演出，最後換結局曲、顯示結局畫面。 */
   async function finish() {
     const m = app.match;
     const r = m.result;
@@ -170,9 +170,10 @@ async function boot() {
       sub = '雙方不分勝負。';
     }
     screens.updateHud(hudState());
-    audio.music.playEnding({ win: 'victory', lose: 'defeat', draw: 'draw' }[tone]);
+    // 致勝那一手的歌一直播到合體技、領域對決演完，結局畫面出來時才換結局曲
     const done = await performer.performFinish(r);
     if (done === 'cancelled' || app.match !== m) return;
+    audio.music.playEnding({ win: 'victory', lose: 'defeat', draw: 'draw' }[tone]);
     screens.showResult({ banner, sub, tone, faction: r.winnerFaction });
   }
 

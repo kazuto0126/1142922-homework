@@ -19,7 +19,7 @@
     import { tileCanvas, loadEmblems, EMBLEM_FILES } from './js/assets/emblems.js';
     for (const f of EMBLEM_FILES) { const i = new Image(); i.src = f; document.getElementById('raw').appendChild(i); }
     const emblems = await loadEmblems();
-    for (const w of WORLDS) document.getElementById('grid').appendChild(tileCanvas(w, emblems[w.cell]));
+    for (const w of WORLDS) document.getElementById('grid').appendChild(tileCanvas(w, emblems[w.id]));
   </script>
 </body>
 </html>

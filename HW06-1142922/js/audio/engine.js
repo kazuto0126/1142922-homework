@@ -2,6 +2,7 @@
 // 音量一律由 busGains 決定：音樂 = 音效 × 0.4，大招時再 × 0.35。
 import { busGains } from '../core/audioPlan.js';
 import { MUSIC, isAvailable } from '../assets/manifest.js';
+import { WORLDS } from '../core/worlds.js';
 import * as synth from './synth.js';
 import { createMusicManager } from './music.js';
 
@@ -28,7 +29,7 @@ export function createAudio(initialSettings) {
     sfxBus.connect(comp);
     musicBus.connect(comp);
     music = createMusicManager({
-      ctx, dest: musicBus, synth, paths: MUSIC.cell, available: isAvailable,
+      ctx, dest: musicBus, synth, paths: WORLDS.map(w => MUSIC.cell[w.id]), // 依盤面位置排列：playCell(盤面位置) available: isAvailable,
       fetchBuffer: async path => {
         const r = await fetch(path);
         if (!r.ok) throw new Error(`${path}: ${r.status}`);
