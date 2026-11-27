@@ -216,7 +216,7 @@ export function spawn(stage, obj, { life = 0.6, delay = 0, update = null } = {})
         off();
         stage.fxLayer.remove(obj);
         obj.traverse(o => {
-          if (o.geometry) o.geometry.dispose();
+          if (o.geometry && !o.geometry.userData.shared) o.geometry.dispose(); // 共用的幾何（閃電、劍氣）不丟，下次直接用
           if (o.material) [].concat(o.material).forEach(m => m.dispose());
         });
         resolve();
@@ -330,6 +330,12 @@ export function converge(stage, center, { radius = 1.5, count = 60, color = '#ff
   }
 }
 
+// 閃電每一節共用同一個圓柱幾何（原本每一節都新建一個，閃電多的時候會卡）
+const BOLT_GEO = new THREE.CylinderGeometry(1, 1, 1, 6, 1, true);
+const BOLT_CORE_GEO = new THREE.CylinderGeometry(0.4, 0.4, 1, 5, 1, true);
+BOLT_GEO.userData.shared = true;
+BOLT_CORE_GEO.userData.shared = true;
+
 /** 鋸齒狀的閃電（由細圓柱組成），每 60 ms 重新抖動一次。 */
 export function bolt(stage, from, to, { color = '#ffffff', width = 0.06, life = 0.35, delay = 0, segments = 10, jag = 0.35 } = {}) {
   const g = new THREE.Group();
@@ -337,8 +343,8 @@ export function bolt(stage, from, to, { color = '#ffffff', width = 0.06, life = 
   const core = glowMat('#ffffff', 1);
   const segs = [];
   for (let i = 0; i < segments; i++) {
-    const m = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 1, 6, 1, true), mat);
-    const c = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.4, 1, 5, 1, true), core);
+    const m = new THREE.Mesh(BOLT_GEO, mat);
+    const c = new THREE.Mesh(BOLT_CORE_GEO, core);
     m.add(c);
     g.add(m);
     segs.push(m);
