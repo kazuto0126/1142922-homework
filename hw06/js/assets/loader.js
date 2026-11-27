@@ -10,7 +10,12 @@ export function loadImage(path, placeholder) {
   return new Promise(resolve => {
     const img = new Image();
     img.decoding = 'async';
-    img.onload = () => resolve(img);
+    // 先把圖完整解碼好，第一次畫到 cut-in / 立繪時才不會卡一下
+    // （分頁在背景、畫面暫停時 decode() 可能一直不結束，所以最多等 0.3 秒，不能卡住載入）
+    img.onload = () => Promise.race([
+      img.decode ? img.decode().catch(() => {}) : Promise.resolve(),
+      new Promise(r => setTimeout(r, 300)),
+    ]).then(() => resolve(img));
     img.onerror = () => resolve(placeholderCanvas(placeholder));
     img.src = path;
   });

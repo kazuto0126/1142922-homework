@@ -8,7 +8,7 @@ import { WORLDS, FACTIONS } from './core/worlds.js';
 import { createTapTracker } from './core/pointer.js';
 import { createStats } from './core/stats.js';
 import { loadSettings, saveSettings } from './core/settings.js';
-import { IMAGES } from './assets/manifest.js';
+import { IMAGES, MUSIC } from './assets/manifest.js';
 import { loadImage } from './assets/loader.js';
 import { tileCanvas, loadEmblems } from './assets/emblems.js';
 import { createScreens } from './ui/screens.js';
@@ -60,8 +60,17 @@ async function boot() {
   const leaderImages = { sukuna: leaderList[0], gojo: leaderList[1] };
   const emblems = await loadEmblems();
   WORLDS.forEach(w => stage.setWorldImage(w.cell, tileCanvas(w, emblems[w.id])));
-  // 在封面畫面時先把特效的著色器編譯好（不等它，背景進行）
+  // 在封面畫面時先把特效的著色器編譯好、立繪上傳到顯示卡（不等它，背景進行）
   stage.warmup(fxWarmupObjects(stage));
+  stage.preloadImages([...heroImages, ...Object.values(leaderImages)]);
+  // 九首歌在背景一首一首先下載（進瀏覽器快取），之後換歌就不用等下載
+  (async () => {
+    const order = [SAO_CELL, ...WORLDS.map(w => w.cell).filter(c => c !== SAO_CELL)];
+    for (const cell of order) {
+      const path = MUSIC.cell[WORLDS[cell].id];
+      try { await fetch(path, { priority: 'low' }).then(r => r.arrayBuffer()); } catch { /* 下載失敗沒關係，播放時會再試 */ }
+    }
+  })();
 
   // ── 狀態 ──
   const app = {

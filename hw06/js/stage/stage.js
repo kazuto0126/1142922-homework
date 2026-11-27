@@ -588,6 +588,19 @@ export function createStage(canvas, { quality = 'high' } = {}) {
    * 主角加入陣營：立繪只跳出來約 1 秒就淡出（不擋視線）；
    * 之後格子上只留陣營棋子，不放頭像（使用者要求）。
    */
+  // 立繪貼圖快取：每張圖只建立、上傳到顯示卡一次（第一次跳出立繪時才不會卡一下）
+  const standeeTex = new Map();
+  function standeeTexture(image) {
+    if (!standeeTex.has(image)) standeeTex.set(image, textureFrom(image));
+    return standeeTex.get(image);
+  }
+  /** 封面時先把立繪上傳到顯示卡。 */
+  function preloadImages(images) {
+    for (const img of images) {
+      try { renderer.initTexture(standeeTexture(img)); } catch (e) { console.warn('preloadImages', e); }
+    }
+  }
+
   function placeStandee(i, faction, image) {
     const c = cells[i];
     if (c.standee) return c.standee;
@@ -596,7 +609,7 @@ export function createStage(canvas, { quality = 'high' } = {}) {
     group.userData.baseY = TILE_TOP + 0.02;
 
     // 暫時跳出來的立繪
-    const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: textureFrom(image), transparent: true, depthWrite: false, opacity: 0 }));
+    const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: standeeTexture(image), transparent: true, depthWrite: false, opacity: 0 }));
     const aspect = (image.width || 1) / (image.height || 1);
     const h = 1.6;
     sprite.scale.set(h * aspect, h, 1);
@@ -612,8 +625,7 @@ export function createStage(canvas, { quality = 'high' } = {}) {
       sprite.position.y = (1 - Math.min(1, k / 0.15)) * -0.3 + (k > 0.7 ? -(k - 0.7) * 0.8 : 0);
       if (k >= 1 && sprite.parent) {
         group.remove(sprite);
-        sprite.material.map.dispose();
-        sprite.material.dispose();
+        sprite.material.dispose(); // 貼圖留在快取裡，下次直接用
       }
     });
     return group;
@@ -685,7 +697,7 @@ export function createStage(canvas, { quality = 'high' } = {}) {
     cancelFx();
     for (const c of cells) {
       if (c.piece) { pieces.remove(c.piece); dispose(c.piece); c.piece = null; }
-      if (c.standee) { pieces.remove(c.standee); dispose(c.standee); c.standee = null; }
+      if (c.standee) { pieces.remove(c.standee); c.standee.traverse(o => { if (o.material) o.material.dispose(); }); c.standee = null; } // 立繪貼圖在快取裡，不 dispose
       removeClaim(c);
       setFrameColor(c.tile.userData.cell, c.color);
     }
@@ -738,7 +750,7 @@ export function createStage(canvas, { quality = 'high' } = {}) {
     scene, camera, renderer, controls, fxLayer,
     cellCenter: i => cells[i].center.clone(),
     pickCell, setHover, setWorldImage, placePiece, placeStandee, clearBoard, takeCell, cellsOf, resetEnvironment, cancelFx, onCancelFx,
-    onFrame, tween, flyTo, borrowLight, warmup, mirror, composer, bloom, setSkyMood,
+    onFrame, tween, flyTo, borrowLight, warmup, mirror, composer, bloom, setSkyMood, preloadImages,
     get perf() { return { level: perf.level, fps: perf.fps, pixelRatio: renderer.getPixelRatio(), mirror: mirror.enabled }; },
     /** 開發用：停掉自動更新，改成手動推進（瀏覽器暫停動畫時截圖用）。 */
     manualTick(on) { renderer.setAnimationLoop(on ? null : frame); return frame; }, orbitLine, restoreView, snapBack, resetView, setQuality, shake, impact,
