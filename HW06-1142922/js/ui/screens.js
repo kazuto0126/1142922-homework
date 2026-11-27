@@ -21,8 +21,10 @@ export function createScreens(root, handlers, { leaderImages }) {
     return layers[name];
   }
 
+  let adoptedBoot = null; // index.html 裡預先畫好的封面（第一次顯示標題時直接沿用）
   function only(...names) {
     for (const [n, el] of Object.entries(layers)) el.hidden = !names.includes(n);
+    if (adoptedBoot && !names.includes('title')) { adoptedBoot.remove(); adoptedBoot = null; }
   }
 
   // ── 標題 ──
@@ -30,6 +32,20 @@ export function createScreens(root, handlers, { leaderImages }) {
     const el = layer('title');
     // 封面：白色的系統開機畫面（原創設計），中間一顆很明顯的英文 START，按下去才潛入遊戲
     const checks = ['NEURAL INTERFACE', 'VISUAL OUTPUT', 'AUDIO OUTPUT', 'MOTOR CONTROL', 'BOARD 3×3 GRID'];
+    const pre = document.getElementById('preboot');
+    if (pre) {
+      // 第一次：沿用 HTML 裡已經在播動畫的封面（不重畫，動畫才不會重來），把 START 打開
+      pre.removeAttribute('id');
+      adoptedBoot = pre;
+      el.replaceChildren();
+      const btn = pre.querySelector('[data-act=start]');
+      btn.disabled = false;
+      btn.querySelector('.boot-start-sub').textContent = 'CLICK TO LINK START';
+      btn.onclick = h('onStart');
+      pre.querySelector('[data-act=credits]').onclick = () => openCredits();
+      only('title');
+      return;
+    }
     el.innerHTML = `
       <div class="boot">
         <div class="boot-grid"></div>

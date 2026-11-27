@@ -460,7 +460,7 @@ h2 { margin: 0; font-size: clamp(24px, 5vw, 36px); letter-spacing: 0.15em; }
   color: #2a3550; font-family: Consolas, 'Courier New', monospace;
   animation: boot-in 0.8s ease-out both;
 }
-@keyframes boot-in { from { opacity: 0; filter: brightness(1.6) blur(6px); } }
+@keyframes boot-in { from { filter: brightness(1.25) blur(6px); } } /* 不從透明淡入：一打開就完全蓋住棋盤 */
 .boot-grid {
   position: absolute; inset: -2px; pointer-events: none; opacity: 0.55;
   background-image: linear-gradient(#c9d3e3 1px, transparent 1px), linear-gradient(90deg, #c9d3e3 1px, transparent 1px);
@@ -553,3 +553,8 @@ h2 { margin: 0; font-size: clamp(24px, 5vw, 36px); letter-spacing: 0.15em; }
 .clash.draw.final .clash-name.left, .clash.draw.final .clash-name.right { opacity: 0; }
 .clash.draw .clash-final { -webkit-text-stroke: 2px #1a0830; text-shadow: 0 0 24px #b07cff, 0 0 60px #6f8cff, 0 0 30px #ff3347, 6px 6px 0 #000; }
 .clash.draw .clash-final small { color: #e6dcff; letter-spacing: 0.8em; }
+
+/* 素材還在載入時：START 先不能按，副標題顯示 LOADING… 並閃爍 */
+.boot-start[disabled] { cursor: progress; }
+.boot-start[disabled] .boot-start-sub { animation: loading-blink 0.9s ease-in-out infinite; }
+@keyframes loading-blink { 50% { opacity: 0.35; } }
