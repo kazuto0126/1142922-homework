@@ -241,6 +241,8 @@ export function createStage(canvas, { quality = 'high' } = {}) {
 
   // 每一幀：可以由 setAnimationLoop 驅動，也可以由開發工具手動呼叫 tick()
   let timeScale = 1;
+  let frameNo = 0;
+  let renderEvery = 1;
   const mood = { bias: 0, winner: null };
   /** 天空與四方燈的氣氛。bias：-1 宿儺佔優 … +1 五條悟佔優；winner：'sukuna' | 'gojo' | null（結局時整片天空染色）。 */
   function setSkyMood({ bias = mood.bias, winner = mood.winner } = {}) {
@@ -313,10 +315,14 @@ export function createStage(canvas, { quality = 'high' } = {}) {
         shook = true;
       }
     }
-    if (useComposer) {
-      mirror.render(scene, camera);
-      composer.render();
-    } else renderer.render(scene, camera);
+    // 被全螢幕動畫蓋住時可以每 N 幀才畫一次（特效照常更新），把時間讓給前面的動畫
+    frameNo++;
+    if (frameNo % renderEvery === 0) {
+      if (useComposer) {
+        mirror.render(scene, camera);
+        composer.render();
+      } else renderer.render(scene, camera);
+    }
     if (shook) camera.position.sub(shakeOff);
   };
   renderer.setAnimationLoop(frame);
@@ -717,6 +723,9 @@ export function createStage(canvas, { quality = 'high' } = {}) {
     }
   }
 
+  /** 每 n 幀才真的畫一次（1 = 每幀都畫）。 */
+  function setRenderEvery(n) { renderEvery = Math.max(1, Math.round(n)); }
+
   let running = true;
   /** 暫停 / 恢復 3D 繪製（封面完全蓋住棋盤時不用畫，省下主執行緒給封面動畫）。 */
   function setRunning(on) {
@@ -727,11 +736,11 @@ export function createStage(canvas, { quality = 'high' } = {}) {
   }
 
   /**
-   * 入場運鏡：從遠處高空繞著整個場景轉一圈（看遍四個方位的天空），再降到棋盤上方的預設視角。
+   * 入場運鏡：鏡頭降到跟棋盤差不多高，平視著繞場景一整圈（平平地看過四個方位的天空），再升到棋盤上方的預設視角。
    * 點一下或按任意鍵可以直接跳到結尾。回傳結束時 resolve 的 Promise。
    */
   function introSweep(ms = 4200) {
-    const target0 = new THREE.Vector3(0, 1.2, 0);
+    const target0 = new THREE.Vector3(0, 1.6, 0);
     const endPos = viewToPosition(DEFAULT_VIEW);
     const endTarget = DEFAULT_VIEW.target.clone();
     const endSph = new THREE.Spherical().setFromVector3(endPos.clone().sub(endTarget));
@@ -740,11 +749,12 @@ export function createStage(canvas, { quality = 'high' } = {}) {
     let skip = null;
     const p = cameraTween(ms, k => {
       const e = ease(k);
-      // 前 75%：大半徑繞圈並慢慢下降；後 25%：平滑接到預設視角
+      // 前 75%：平視（接近水平）繞一整圈；後 25%：升起、平滑接到預設視角
       const orbitK = Math.min(1, k / 0.75);
       const az = a0 + (endSph.theta - a0) * ease(orbitK);
-      const dist = 30 - 10 * orbitK;
-      const pol = (74 - 14 * orbitK) * DEG;
+      const dist = 20 - 3 * orbitK;
+      const pol = (88 - 4 * orbitK) * DEG; // 88° ≈ 水平，看得到整片背景
+
       const orbitPos = new THREE.Spherical(dist, pol, az);
       const pos = new THREE.Vector3().setFromSpherical(orbitPos).add(target0);
       const blend = k < 0.75 ? 0 : ease((k - 0.75) / 0.25);
@@ -769,7 +779,7 @@ export function createStage(canvas, { quality = 'high' } = {}) {
     scene, camera, renderer, controls, fxLayer,
     cellCenter: i => cells[i].center.clone(),
     pickCell, setHover, setWorldImage, placePiece, placeStandee, clearBoard, takeCell, cellsOf, resetEnvironment, cancelFx, onCancelFx,
-    onFrame, tween, flyTo, borrowLight, warmup, warmDraw, setRunning, introSweep, mirror, composer, bloom, setSkyMood,
+    onFrame, tween, flyTo, borrowLight, warmup, warmDraw, setRunning, setRenderEvery, introSweep, mirror, composer, bloom, setSkyMood,
     get perf() { return { level: perf.level, fps: perf.fps, pixelRatio: renderer.getPixelRatio(), mirror: mirror.enabled }; },
     /** 開發用：停掉自動更新，改成手動推進（瀏覽器暫停動畫時截圖用）。 */
     manualTick(on) { renderer.setAnimationLoop(on ? null : frame); return frame; }, orbitLine, restoreView, snapBack, resetView, setQuality, shake, impact,

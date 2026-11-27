@@ -38,6 +38,16 @@ if (!supportsWebGL()) {
   });
 }
 
+/** 等下一幀（分頁在背景、畫面暫停時最多等 60ms，不會卡住）。 */
+function nextFrame() {
+  return new Promise(resolve => {
+    let done = false;
+    const go = () => { if (!done) { done = true; resolve(); } };
+    requestAnimationFrame(go);
+    setTimeout(go, 60);
+  });
+}
+
 async function boot() {
   const storage = safeStorage();
   let settings = loadSettings(storage);
@@ -89,14 +99,19 @@ async function boot() {
       app.diving = true;
       await audio.unlock();
       document.querySelector('.boot')?.classList.add('diving');
-      // 開始畫 3D；第一次真正的繪製（會佔住主執行緒一下）放在登入動畫一開始的白畫面底下
+      // 第一次真正的 3D 繪製會佔住主執行緒一下：趁封面「變白淡出」的 CSS 動畫（由瀏覽器另一條執行緒處理，不會頓）時做完，
+      // 再開始用主執行緒逐幀畫的光束隧道
+      await nextFrame();
       stage.setRunning(true);
-      requestAnimationFrame(() => stage.warmDraw());
+      stage.setRenderEvery(3); // 登入動畫蓋住畫面時，背後的 3D 每 3 幀才畫一次，把時間讓給隧道動畫
+      stage.warmDraw();
+      await nextFrame();
       // 登入動畫蓋住整個畫面時，在棋盤上靜音預演幾招：顯示卡第一次畫這些特效會卡一下，先在看不到的時候卡掉
       const stopRehearsal = rehearse(stage);
       // 「リンク・スタート」語音 + 潛入音效（使用者提供的原版音檔），動畫跟著聲音的時間點走
       await playLogin({ startAudio: () => audio.clip(SFX.linkStart, 1) });
       stopRehearsal();
+      stage.setRenderEvery(1);
       app.diving = false;
       audio.music.playCell(SAO_CELL); // 潛入完成後才開始刀劍神域的歌
       goMode();
