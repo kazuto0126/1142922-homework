@@ -178,7 +178,7 @@ export function createStage(canvas, { quality = 'high' } = {}) {
   // ── 自動調整畫質：幀率掉下來就先降解析度、再關鏡面反射，順暢優先 ──
   // 等級：[解析度倍率, 鏡面反射解析度（0 = 關）]
   const PERF_LEVELS = [[1, 0.5], [0.85, 0.5], [0.75, 0.4], [0.65, 0.35], [0.6, 0]];
-  const perf = { level: 0, sum: 0, n: 0, since: performance.now(), goodWindows: 0, fps: 60 };
+  const perf = { level: 0, samples: [], since: performance.now(), goodWindows: 0, badWindows: 0, fps: 60 };
   function applyPerf() {
     const [scaleRes, mirrorRes] = PERF_LEVELS[perf.level];
     // 解析度倍率上限 1.5：高解析度筆電原本用 2 倍（像素量是 4 倍），加上抗鋸齒、泛光、鏡面反射負擔太重；1.5 倍肉眼幾乎看不出差別
@@ -188,18 +188,25 @@ export function createStage(canvas, { quality = 'high' } = {}) {
     mirror.scale = mirrorRes || 0.35;
     resize();
   }
+  // 用每秒的「中位數」判斷，而且要連續兩秒都慢才降一級：換場景、第一次畫某個特效時偶爾一兩幀特別慢很正常，
+  // 不該因此降畫質（每換一級都要重建所有繪圖緩衝區，本身就會讓 GPU 頓 60~100ms）。
   function trackPerf(rawDt) {
     if (quality !== 'high' || document.hidden || rawDt > 0.25) return; // 背景分頁、切換時的長間隔不算
-    perf.sum += rawDt; perf.n++;
     const now = performance.now();
-    if (now - perf.since < 1000 || perf.n < 15) return; // 每 1 秒檢查一次，掉幀時反應更快
-    const avg = perf.sum / perf.n;
-    perf.fps = Math.round(1 / avg);
-    perf.sum = 0; perf.n = 0; perf.since = now;
-    if (avg > 1 / 48 && perf.level < PERF_LEVELS.length - 1) { perf.level++; perf.goodWindows = 0; applyPerf(); }
-    else if (avg < 1 / 75 && perf.level > 0 && !camTween) {
+    if (now < perf.since) return; // 剛恢復繪製的寬限期
+    perf.samples.push(rawDt);
+    if (now - perf.since < 1000 || perf.samples.length < 15) return;
+    const sorted = perf.samples.sort((x, y) => x - y);
+    const med = sorted[sorted.length >> 1];
+    perf.fps = Math.round(1 / med);
+    perf.samples = []; perf.since = now;
+    if (med > 1 / 48 && perf.level < PERF_LEVELS.length - 1) {
+      perf.goodWindows = 0;
+      if (++perf.badWindows >= 2) { perf.level++; perf.badWindows = 0; applyPerf(); }
+    } else if (med < 1 / 75 && perf.level > 0 && !camTween) {
+      perf.badWindows = 0;
       if (++perf.goodWindows >= 4) { perf.level--; perf.goodWindows = 0; applyPerf(); }
-    } else perf.goodWindows = 0;
+    } else { perf.goodWindows = 0; perf.badWindows = 0; }
   }
 
   function resize() {
@@ -767,6 +774,7 @@ export function createStage(canvas, { quality = 'high' } = {}) {
     if (running === !!on) return;
     running = !!on;
     clock.getDelta(); // 恢復時不要把暫停的時間算成一大步
+    perf.samples = []; perf.since = performance.now() + 1500; perf.badWindows = 0; // 剛恢復的頭一秒多不算進畫質判斷
     renderer.setAnimationLoop(running ? frame : null);
   }
 

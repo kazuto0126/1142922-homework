@@ -121,3 +121,8 @@ export default function (fx) {
     residue(fx, { delay: 0.2 });
   });
 }
+
+/** 預熱用：足球的材質（清漆 + 頂點顏色的實體材質，只有這一招用到）。 */
+export function warmupObjects(stage) {
+  return [makeBall(stage)];
+}

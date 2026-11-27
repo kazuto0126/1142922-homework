@@ -115,3 +115,8 @@ export default function (fx) {
     residue(fx, { delay: 0.2 });
   });
 }
+
+/** 預熱用：橡膠拳和手臂的材質。 */
+export function warmupObjects() {
+  return [newFist(), new THREE.Mesh(armGeo, material())];
+}

@@ -252,3 +252,8 @@ export function drawClash(stage, audio) {
 }
 
 export { opponentOf };
+
+/** 預熱用：勝利演出的領域貼圖（第一次畫時要上傳到顯示卡，先在登入動畫時做掉）。 */
+export function warmupTextures() {
+  return [makeDomainTexture()];
+}

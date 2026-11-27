@@ -3,6 +3,12 @@ import * as THREE from 'three';
 import { emit, glowMat, solidMat } from './common.js';
 import { energyMaterial, smoke, sparks, debris } from './realism.js';
 import { makeFist, makeTitanArm, makeSword, makeCoin, std } from './models.js';
+import { warmupObjects as dekuWarm } from './skills/cell0.js';
+import { warmupObjects as conanWarm } from './skills/cell3.js';
+import { warmupObjects as luffyWarm } from './skills/cell4.js';
+import { warmupTextures as leaderTex } from './leaders.js';
+import { warmupTextures as sukunaTex } from './sukuna.js';
+import { warmupTextures as scorchTex } from './realism.js';
 
 export function fxWarmupObjects(stage) {
   // 粒子、煙、火花、碎石系統第一次使用時才會建立（加進場景），先各發一顆在畫面外
@@ -31,6 +37,10 @@ export function fxWarmupObjects(stage) {
     makeTitanArm(),
     makeSword(true),
     makeCoin(),
+    // 各招自己共用、第一次用才建立的材質
+    ...dekuWarm(), ...conanWarm(stage), ...luffyWarm(),
+    // 結局、伏魔御廚子、焦痕用的畫布貼圖：登入動畫時先真的畫一次，上傳到顯示卡
+    ...[...leaderTex(), ...sukunaTex(), ...scorchTex()].map(map => new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ map, transparent: true, depthWrite: false }))),
   ];
   return objs;
 }

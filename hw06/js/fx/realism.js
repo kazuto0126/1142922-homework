@@ -397,3 +397,8 @@ export function hit(fx, { power = 1, color = null, smokeColor = '#3a3a44', debri
   emit(stage, { pos: pos.clone().setY(pos.y + 0.3), count: 40 * mul, color: '#ffffff', color2: c, speed: 6 * p, life: 0.35, size: 0.28 });
   if (scorched) scorch(stage, pos, { radius: 1.0 * p, glow: c instanceof THREE.Color ? '#' + c.getHexString() : c });
 }
+
+/** 預熱用：地面焦痕貼圖。 */
+export function warmupTextures() {
+  return [scorchTexture()];
+}

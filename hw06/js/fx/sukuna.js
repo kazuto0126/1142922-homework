@@ -168,3 +168,8 @@ export function malevolentShrine(stage, audio) {
     });
   });
 }
+
+/** 預熱用：伏魔御廚子的天空貼圖。 */
+export function warmupTextures() {
+  return [shrineSkyTexture()];
+}

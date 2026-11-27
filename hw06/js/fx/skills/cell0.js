@@ -122,3 +122,8 @@ export default function (fx) {
     residue(fx, { delay: 0.3 });
   });
 }
+
+/** 預熱用：能量拳的材質（第一次出拳才不會卡一下）。 */
+export function warmupObjects() {
+  return [makeFist(greenFistMaterial(), { arm: 0 })];
+}

@@ -136,7 +136,7 @@ export function createPerformer({ stage, audio, heroImages, leaderImages, getSet
     // 結局：整片天空慢慢染成勝方的顏色（平手維持四方位）
     stage.setSkyMood({ bias: 0, winner: faction || null });
     // 跳過結局相關演出：cut-in、鏡頭、還在跑的特效全部收掉
-    const skipCleanup = () => { cutin.clearAll(); clearClash(); audio.boostMusic(false); stage.snapBack(); stage.cancelFx(); };
+    const skipCleanup = () => { cutin.clearAll(); clearClash(); stage.setRenderEvery(1); audio.boostMusic(false); stage.snapBack(); stage.cancelFx(); };
 
     if (faction && result.line) {
       const plan = planUnison(result.line);
@@ -187,6 +187,9 @@ export function createPerformer({ stage, audio, heroImages, leaderImages, getSet
         audio.boostMusic(true);
         playDomainClash({ outcome: faction === 'sukuna' ? 'lose' : 'draw' });
       });
+      // 對決畫面整個蓋住棋盤的期間，背後的 3D 每 4 幀才畫一次（動畫照常更新），把顯示卡讓給對決動畫；收尾前恢復
+      tl.add(400, () => stage.setRenderEvery(4));
+      tl.add(Math.max(400, endAt - 450), () => stage.setRenderEvery(1));
     }
     tl.add(endAt, () => {
       audio.duck(false);
@@ -221,6 +224,7 @@ export function createPerformer({ stage, audio, heroImages, leaderImages, getSet
       if (current) current.cancel();
       cutin.clearAll();
       clearClash();
+      stage.setRenderEvery(1);
       audio.boostMusic(false);
       stage.snapBack();
       audio.duck(false);

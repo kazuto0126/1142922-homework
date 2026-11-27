@@ -117,9 +117,16 @@ function barrierMaterial(uTime) {
   });
 }
 
-/** 給開場預熱用：護盾的著色器先編譯好，第一次出現才不會卡一下。 */
+/**
+ * 給開場預熱用：護盾、危機警示的著色器先編譯好（掃描光柱在 stage.warmup 裡已經有了），而且一直留著一份
+ * （不然每局結束清掉之後，下一局第一次出現又要重新編譯，會卡將近半秒）。
+ */
 export function hudWarmupObjects() {
-  return [new THREE.Mesh(barrierGeo, barrierMaterial({ value: 0 }))];
+  const t = { value: 0 };
+  return [
+    new THREE.Mesh(barrierGeo, barrierMaterial(t)),
+    threatOverlay(t, 1, '#ffffff'),
+  ];
 }
 
 export function createBoardHud(stage, { cellSize = 2.4 } = {}) {
