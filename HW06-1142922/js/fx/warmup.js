@@ -40,7 +40,7 @@ export function fxWarmupObjects(stage) {
  */
 export function rehearse(stage) {
   const silent = { sfx() {}, clip() {} };
-  const plan = [[4, 'gojo'], [3, 'sukuna'], [5, 'gojo'], [7, 'sukuna'], [0, 'gojo'], [2, 'sukuna']]; // 盤面位置：刀劍、妖精尾巴、超電磁砲、巨人、火影、航海王（特效最重的先預演）
+  const plan = [[4, 'gojo'], [3, 'sukuna'], [5, 'gojo'], [0, 'sukuna'], [1, 'gojo'], [2, 'sukuna'], [7, 'gojo']]; // 盤面位置：刀劍、妖精尾巴、超電磁砲、火影、死神、航海王、巨人（特效最重的先預演）
   let stopped = false;
   const timers = [];
   import('./skills/index.js').then(({ SKILLS, makeFx }) => import('./common.js').then(({ palette }) => import('../core/worlds.js').then(({ WORLDS }) => {

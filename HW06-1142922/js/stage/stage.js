@@ -827,6 +827,7 @@ function dispose(obj) {
     if (o.geometry && !o.geometry.userData.shared) o.geometry.dispose(); // 共用幾何不丟
     if (o.material) {
       for (const m of [].concat(o.material)) {
+        if (m.userData && m.userData.shared) continue; // 共用材質不丟
         if (m.map && m.map.dispose) m.map.dispose();
         m.dispose();
       }

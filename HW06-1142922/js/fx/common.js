@@ -217,7 +217,7 @@ export function spawn(stage, obj, { life = 0.6, delay = 0, update = null } = {})
         stage.fxLayer.remove(obj);
         obj.traverse(o => {
           if (o.geometry && !o.geometry.userData.shared) o.geometry.dispose(); // 共用的幾何（閃電、劍氣）不丟，下次直接用
-          if (o.material) [].concat(o.material).forEach(m => m.dispose());
+          if (o.material) [].concat(o.material).forEach(m => { if (!m.userData.shared) m.dispose(); }); // 共用材質不丟
         });
         resolve();
       }
