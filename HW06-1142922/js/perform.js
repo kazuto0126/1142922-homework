@@ -132,6 +132,8 @@ export function createPerformer({ stage, audio, heroImages, leaderImages, getSet
   async function performFinish(result) {
     const myEpoch = epoch;
     const faction = result.winnerFaction;
+    // 結局：整片天空慢慢染成勝方的顏色（平手維持四方位）
+    stage.setSkyMood({ bias: 0, winner: faction || null });
     // 跳過結局相關演出：cut-in、鏡頭、還在跑的特效全部收掉
     const skipCleanup = () => { cutin.clearAll(); clearClash(); audio.boostMusic(false); stage.snapBack(); stage.cancelFx(); };
 

@@ -7,7 +7,7 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { WORLDS, FACTIONS } from '../core/worlds.js';
-import { makeSky, makeDust, makeArenaRings, makeShards, makeUnderside, makeSeams, makeLightShafts, bevelTileGeometry, makeClaimOverlay, makeBeamPillar } from './scenery.js';
+import { makeQuadrantLights, makeSky, makeDust, makeArenaRings, makeShards, makeUnderside, makeSeams, makeLightShafts, bevelTileGeometry, makeClaimOverlay, makeBeamPillar } from './scenery.js';
 import { makeStudioEnv, createMirror, brushedTexture, stoneRoughness, makeCrimsonCrystal, makeSixEyesCrystal, setCrystalQuality } from './look.js';
 
 export const CELL = 2.4; // 格子加大 20%（使用者要求棋盤大一點）
@@ -70,9 +70,9 @@ export function createStage(canvas, { quality = 'high' } = {}) {
   key.shadow.normalBias = 0.02;
   key.shadow.radius = 4;
   scene.add(key);
-  const rim = new THREE.DirectionalLight('#6f8cff', 1.3);
-  rim.position.set(-6, 5, -8);
-  scene.add(rim);
+  // 四個方位的方向燈（跟四方位天空對應）：血紅、藍紫、金色、深藍
+  const quad = makeQuadrantLights();
+  scene.add(quad.group);
   const accentL = new THREE.PointLight('#ff3347', 22, 12, 2);
   accentL.position.set(-5.5, 2.2, 1);
   const accentR = new THREE.PointLight('#8a5cff', 22, 12, 2);
@@ -241,6 +241,12 @@ export function createStage(canvas, { quality = 'high' } = {}) {
 
   // 每一幀：可以由 setAnimationLoop 驅動，也可以由開發工具手動呼叫 tick()
   let timeScale = 1;
+  const mood = { bias: 0, winner: null };
+  /** 天空與四方燈的氣氛。bias：-1 宿儺佔優 … +1 五條悟佔優；winner：'sukuna' | 'gojo' | null（結局時整片天空染色）。 */
+  function setSkyMood({ bias = mood.bias, winner = mood.winner } = {}) {
+    mood.bias = Math.max(-1, Math.min(1, bias));
+    mood.winner = winner || null;
+  }
   const frame = () => {
     const rawDt = clock.getDelta();
     trackPerf(rawDt);
@@ -277,6 +283,17 @@ export function createStage(canvas, { quality = 'high' } = {}) {
     accentL.intensity = 22 * (0.8 + 0.2 * Math.sin(T * 0.9));
     accentR.intensity = 22 * (0.8 + 0.2 * Math.sin(T * 0.9 + 2.1));
     // 領域展開時背景換掉：星雲天空淡出，結束後再淡回來
+    // 天空的氣氛：誰佔優勢那一側變亮；結局時整片染成勝方的顏色（平滑過渡）
+    const sk = sky.material.uniforms;
+    sk.uBias.value += (mood.bias - sk.uBias.value) * Math.min(1, dt * 1.5);
+    sk.uOverAmt.value += ((mood.winner ? 0.85 : 0) - sk.uOverAmt.value) * Math.min(1, dt * 1.2);
+    if (mood.winner) sk.uOver.value.set(mood.winner === 'sukuna' ? '#ff2a36' : '#9a6bff');
+    const b = sk.uBias.value, over = sk.uOverAmt.value;
+    const winS = mood.winner === 'sukuna' ? over : 0, winG = mood.winner === 'gojo' ? over : 0;
+    quad.lights.crimson.intensity = quad.base.crimson * (1 + Math.max(-b, 0) * 0.9 + winS * 1.5) * (1 - winG * 0.6);
+    quad.lights.violet.intensity = quad.base.violet * (1 + Math.max(b, 0) * 0.9 + winG * 1.5) * (1 - winS * 0.6);
+    quad.lights.gold.intensity = quad.base.gold * (1 - over * 0.6);
+    quad.lights.blue.intensity = quad.base.blue * (1 - over * 0.5);
     const skyTarget = scene.background.equals(env.background) ? 1 : 0;
     const su = sky.material.uniforms.uFade;
     su.value += (skyTarget - su.value) * Math.min(1, dt * 3);
@@ -721,7 +738,7 @@ export function createStage(canvas, { quality = 'high' } = {}) {
     scene, camera, renderer, controls, fxLayer,
     cellCenter: i => cells[i].center.clone(),
     pickCell, setHover, setWorldImage, placePiece, placeStandee, clearBoard, takeCell, cellsOf, resetEnvironment, cancelFx, onCancelFx,
-    onFrame, tween, flyTo, borrowLight, warmup, mirror, composer, bloom,
+    onFrame, tween, flyTo, borrowLight, warmup, mirror, composer, bloom, setSkyMood,
     get perf() { return { level: perf.level, fps: perf.fps, pixelRatio: renderer.getPixelRatio(), mirror: mirror.enabled }; },
     /** 開發用：停掉自動更新，改成手動推進（瀏覽器暫停動畫時截圖用）。 */
     manualTick(on) { renderer.setAnimationLoop(on ? null : frame); return frame; }, orbitLine, restoreView, snapBack, resetView, setQuality, shake, impact,

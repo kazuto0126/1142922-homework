@@ -14,10 +14,21 @@ const NOISE = `
 
 // ───────────────────────── 天空 ─────────────────────────
 
-/** 星雲天空：左邊偏紅（宿儺）、右邊偏紫（五條悟），中間深藍；會閃的星星；整片緩慢流動。 */
+/**
+ * 四方位的天空（原創抽象場景）：鏡頭預設在 +z 看向棋盤，所以遠方左邊是 (-x,-z)。
+ *   左前（宿儺側）血紅黃昏：低垂的雲、地平線上的遠火
+ *   右前（五條悟側）藍紫極光：流動的光帶
+ *   左後 金色破曉：太陽光暈、雲縫透出的光芒
+ *   右後 深藍星海：星雲與滿天的星星
+ * 四塊用方向權重平滑混合。uBias：-1 宿儺佔優 … +1 五條悟佔優（那一側變亮）；
+ * uOver / uOverAmt：結局時整片天空染成勝方的顏色；uFade：領域展開換背景時淡出。
+ */
 export function makeSky(uTime) {
   const mat = new THREE.ShaderMaterial({
-    uniforms: { uTime, uFade: { value: 1 } },
+    uniforms: {
+      uTime, uFade: { value: 1 }, uBias: { value: 0 },
+      uOver: { value: new THREE.Color('#ff2030') }, uOverAmt: { value: 0 },
+    },
     vertexShader: `
       varying vec3 vDir;
       void main() {
@@ -27,27 +38,87 @@ export function makeSky(uTime) {
       }`,
     fragmentShader: `
       float spow(float x, float y) { return pow(max(x, 1e-4), y); }
-      uniform float uTime, uFade;
+      uniform float uTime, uFade, uBias, uOverAmt;
+      uniform vec3 uOver;
       varying vec3 vDir;
       ${NOISE}
+
+      // 左前：血紅黃昏
+      vec3 crimson(vec3 d, float h, float az) {
+        vec3 col = mix(vec3(0.62, 0.10, 0.05), vec3(0.16, 0.01, 0.04), smoothstep(0.0, 0.35, h));
+        col = mix(col, vec3(0.03, 0.0, 0.012), smoothstep(0.3, 0.9, h));
+        float n = fbm(vec3(az * 3.0 + uTime * 0.01, h * 7.0, 1.3));
+        float band = smoothstep(0.0, 0.08, h) * smoothstep(0.38, 0.15, h);
+        float cloud = smoothstep(0.42, 0.68, n) * band;
+        col = mix(col, vec3(0.06, 0.0, 0.012), cloud * 0.85);                     // 雲的剪影
+        col += vec3(1.0, 0.3, 0.12) * smoothstep(0.55, 0.42, n) * band * 0.25;     // 被火光照亮的雲底
+        float fire = smoothstep(0.78, 0.95, vnoise(vec3(az * 70.0, h * 90.0, uTime * 1.6)))
+                   * smoothstep(0.035, 0.0, abs(h - 0.012)) * step(0.0, h);
+        col += vec3(1.4, 0.45, 0.1) * fire;                                         // 地平線上的遠火
+        return col;
+      }
+      // 右前：藍紫極光
+      vec3 violet(vec3 d, float h, float az) {
+        vec3 col = mix(vec3(0.10, 0.05, 0.24), vec3(0.01, 0.01, 0.05), smoothstep(0.0, 0.7, h));
+        for (int i = 0; i < 2; i++) {
+          float fi = float(i);
+          float y0 = 0.28 + fi * 0.14 + 0.07 * sin(az * (4.0 + fi) + uTime * (0.25 + fi * 0.1)) + 0.05 * (fbm(vec3(az * 6.0, uTime * 0.12, fi)) - 0.5);
+          float curtain = exp(-abs(h - y0) * 16.0) * (0.45 + 0.55 * vnoise(vec3(az * 40.0, uTime * 0.6, fi)));
+          float rays = smoothstep(y0 - 0.02, y0 + 0.18, h) * smoothstep(y0 + 0.3, y0, h) * spow(vnoise(vec3(az * 90.0, uTime * 0.3, fi + 3.0)), 3.0);
+          vec3 c = mix(vec3(0.25, 0.9, 0.8), vec3(0.6, 0.3, 1.0), clamp(fi * 0.7 + 0.3 * sin(az * 3.0 + uTime * 0.2), 0.0, 1.0));
+          col += c * (curtain * 0.65 + rays * 0.45);
+        }
+        return col;
+      }
+      // 左後：金色破曉
+      vec3 gold(vec3 d, float h, float az) {
+        vec3 col = mix(vec3(0.9, 0.55, 0.24), vec3(0.45, 0.22, 0.26), smoothstep(0.0, 0.22, h));
+        col = mix(col, vec3(0.06, 0.08, 0.2), smoothstep(0.18, 0.75, h));
+        vec3 sunDir = normalize(vec3(-0.72, 0.1, 0.69));
+        float s = max(dot(d, sunDir), 0.0);
+        col += vec3(1.3, 0.85, 0.45) * (spow(s, 900.0) * 3.0 + spow(s, 40.0) * 0.6 + spow(s, 6.0) * 0.18);
+        // 從太陽放射出去的光芒
+        vec3 t1 = normalize(cross(sunDir, vec3(0.0, 1.0, 0.0)));
+        vec3 t2 = cross(t1, sunDir);
+        float ang = atan(dot(d, t2), dot(d, t1));
+        float rays = spow(0.5 + 0.5 * sin(ang * 26.0 + vnoise(vec3(ang * 5.0, uTime * 0.2, 0.0)) * 3.0), 6.0) * spow(s, 4.0) * smoothstep(-0.05, 0.1, h);
+        col += vec3(1.0, 0.75, 0.4) * rays * 0.4;
+        // 金邊的雲
+        float n = fbm(vec3(az * 2.5 + uTime * 0.008, h * 6.0, 7.1));
+        float band = smoothstep(0.02, 0.1, h) * smoothstep(0.45, 0.2, h);
+        float cloud = smoothstep(0.45, 0.7, n) * band;
+        col = mix(col, vec3(0.32, 0.16, 0.16), cloud * 0.7);
+        col += vec3(1.0, 0.7, 0.3) * smoothstep(0.42, 0.48, n) * (1.0 - smoothstep(0.48, 0.56, n)) * band * 0.8;
+        return col;
+      }
+      // 右後：深藍星海
+      vec3 blue(vec3 d, float h) {
+        vec3 col = mix(vec3(0.02, 0.04, 0.12), vec3(0.004, 0.006, 0.02), smoothstep(-0.1, 0.8, h));
+        vec3 q = d * 2.6 + vec3(uTime * 0.006, 0.0, uTime * 0.004);
+        float n = fbm(q + fbm(q * 1.7) * 0.9);
+        float cloud = smoothstep(0.45, 0.85, n) * smoothstep(-0.3, 0.2, h) * smoothstep(0.9, 0.2, h);
+        col += vec3(0.08, 0.2, 0.55) * cloud * 0.6 + vec3(0.2, 0.3, 0.8) * spow(cloud, 3.0) * 0.4;
+        return col;
+      }
+
       void main() {
         vec3 d = normalize(vDir);
         float h = d.y;
-        // 底色：天頂深、地平線帶一點藍
-        vec3 col = mix(vec3(0.012, 0.016, 0.04), vec3(0.004, 0.005, 0.014), smoothstep(-0.1, 0.8, h));
-        col = mix(col, vec3(0.002, 0.002, 0.006), smoothstep(0.0, -0.6, h));
-        // 星雲：兩層雜訊，沿著地平線的寬帶
-        vec3 q = d * 2.6 + vec3(uTime * 0.006, 0.0, uTime * 0.004);
-        float n = fbm(q + fbm(q * 1.7) * 0.9);
-        float band = smoothstep(-0.35, 0.15, h) * smoothstep(0.85, 0.1, h);
-        float cloud = smoothstep(0.42, 0.85, n) * band;
-        vec3 red = vec3(0.55, 0.05, 0.10), purple = vec3(0.30, 0.12, 0.62), blue = vec3(0.08, 0.16, 0.45);
-        float side = d.x * 0.5 + 0.5;
-        vec3 neb = mix(red, blue, smoothstep(0.1, 0.5, side));
-        neb = mix(neb, purple, smoothstep(0.5, 0.9, side));
-        col += neb * cloud * 0.55;
-        col += neb * spow(cloud, 3.0) * 0.6; // 星雲最亮的核心
-        // 星星：每一格最多一顆，會閃
+        float az = atan(d.z, d.x);
+        vec2 dir = normalize(d.xz + vec2(1e-5));
+        // 四個方位的權重（平滑過渡）
+        float wC = exp(3.0 * (dot(dir, vec2(-0.7071, -0.7071)) - 1.0));
+        float wV = exp(3.0 * (dot(dir, vec2(0.7071, -0.7071)) - 1.0));
+        float wG = exp(3.0 * (dot(dir, vec2(-0.7071, 0.7071)) - 1.0));
+        float wB = exp(3.0 * (dot(dir, vec2(0.7071, 0.7071)) - 1.0));
+        float sum = wC + wV + wG + wB;
+        wC /= sum; wV /= sum; wG /= sum; wB /= sum;
+        // 佔優勢的那一側變亮，另一側稍微暗一點
+        float kC = 1.0 + max(-uBias, 0.0) * 0.9 - max(uBias, 0.0) * 0.35;
+        float kV = 1.0 + max(uBias, 0.0) * 0.9 - max(-uBias, 0.0) * 0.35;
+        // 用真正的高度（地平線以下是負的），雲、遠火、極光才不會被拉成直條
+        vec3 col = crimson(d, h, az) * wC * kC + violet(d, h, az) * wV * kV + gold(d, h, az) * wG * 0.6 + blue(d, h) * wB;
+        // 星星：深藍那側最多，金色那側幾乎看不到
         vec3 sp = d * 220.0;
         vec3 cell = floor(sp);
         float r = hash3(cell);
@@ -56,18 +127,46 @@ export function makeSky(uTime) {
           float dist = length(sp - c);
           float tw = 0.6 + 0.4 * sin(uTime * (1.5 + r * 6.0) + r * 80.0);
           float star = smoothstep(0.35, 0.0, dist) * tw * (r > 0.997 ? 2.2 : 0.8);
-          col += mix(vec3(0.75, 0.82, 1.0), vec3(1.0, 0.85, 0.75), hash3(cell + 9.0)) * star * smoothstep(-0.2, 0.1, h);
+          float vis = (wB * 1.4 + wV * 0.8 + wC * 0.35 + wG * 0.1) * smoothstep(0.02, 0.25, h);
+          col += mix(vec3(0.75, 0.82, 1.0), vec3(1.0, 0.85, 0.75), hash3(cell + 9.0)) * star * vis;
         }
+        // 地平線以下：很快變暗，只留地平線一點餘光
+        col *= mix(1.0, 0.05, smoothstep(0.0, -0.12, h));
+        // 結局：整片天空染成勝方的顏色（保留明暗）
+        float lum = dot(col, vec3(0.2126, 0.7152, 0.0722));
+        col = mix(col, uOver * (lum * 2.2 + 0.03), uOverAmt);
         gl_FragColor = vec4(col * uFade, 1.0);
       }`,
     side: THREE.BackSide,
     depthWrite: false,
     fog: false,
   });
-  const sky = new THREE.Mesh(new THREE.SphereGeometry(100, 48, 24), mat);
+  const sky = new THREE.Mesh(new THREE.SphereGeometry(100, 64, 32), mat);
   sky.renderOrder = -10;
   sky.frustumCulled = false;
   return sky;
+}
+
+/**
+ * 四個方位的方向燈（跟天空對應），讓棋盤和棋子被四種顏色的光照出輪廓。
+ * 回傳 { group, lights: { crimson, violet, gold, blue }, base }。
+ */
+export function makeQuadrantLights() {
+  const group = new THREE.Group();
+  const mk = (color, intensity, pos) => {
+    const l = new THREE.DirectionalLight(color, intensity);
+    l.position.set(...pos);
+    group.add(l);
+    return l;
+  };
+  const lights = {
+    crimson: mk('#ff3a24', 1.5, [-9, 3, -9]),
+    violet: mk('#9a6bff', 1.5, [9, 4, -9]),
+    gold: mk('#ffc070', 1.3, [-9, 3, 9]),
+    blue: mk('#4a78ff', 0.45, [9, 5, 9]),
+  };
+  const base = Object.fromEntries(Object.entries(lights).map(([k, l]) => [k, l.intensity]));
+  return { group, lights, base };
 }
 
 // ───────────────────────── 浮游光塵 ─────────────────────────
