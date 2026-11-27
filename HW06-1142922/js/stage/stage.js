@@ -824,7 +824,7 @@ function backOut(k) {
 
 function dispose(obj) {
   obj.traverse(o => {
-    if (o.geometry) o.geometry.dispose();
+    if (o.geometry && !o.geometry.userData.shared) o.geometry.dispose(); // 共用幾何不丟
     if (o.material) {
       for (const m of [].concat(o.material)) {
         if (m.map && m.map.dispose) m.map.dispose();
