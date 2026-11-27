@@ -3,7 +3,7 @@
 import { Timeline } from './core/timeline.js';
 import { planMove, planUnison, planEnding } from './core/director.js';
 import { WORLDS, FACTIONS } from './core/worlds.js';
-import { palette, ring, emit, converge, orb, flash, later } from './fx/common.js';
+import { palette, ring, emit, converge, orb, flash, later, liveParticles, pendingFx } from './fx/common.js';
 import { SKILLS, makeFx } from './fx/skills/index.js';
 import * as leaders from './fx/leaders.js';
 import * as cutin from './ui/cutin.js';
@@ -115,6 +115,18 @@ export function createPerformer({ stage, audio, heroImages, leaderImages, getSet
    * 對局結束：有人連線 → 合體技（5 秒）→ 勝利演出（7 秒）；和局 → 對撞演出（7 秒）。
    * 每一段都可以跳過；回傳 'cancelled' 表示中途被取消（例如按了回標題）。
    */
+  /** 畫面上的演出是不是都結束了：沒有特效物件、粒子幾乎散光、沒有待觸發的特效、鏡頭不動、沒有 cut-in 和領域對決。 */
+  function stageQuiet() {
+    return stage.fxLayer.children.length === 0
+      && liveParticles(stage) < 25
+      && pendingFx(stage) === 0
+      && !stage.isCinematic
+      && cutin.activeCount() === 0
+      && !document.querySelector('.clash');
+  }
+  /** 時間軸最後一個步驟的時間。 */
+  const lastBeat = beats => Math.max(0, ...beats.map(b => b.at));
+
   async function performFinish(result) {
     const myEpoch = epoch;
     const faction = result.winnerFaction;
@@ -146,6 +158,8 @@ export function createPerformer({ stage, audio, heroImages, leaderImages, getSet
         }
       }
       tl.setDuration(plan.duration);
+      // 動畫演完就直接往下走，不要留一段什麼都沒有的空白
+      tl.endEarlyWhen(stageQuiet, { afterMs: lastBeat(plan.beats) + 600 });
       tl.onSkip(skipCleanup);
       const r = await run(tl);
       // 跳過合體技 = 直接到結局畫面（不再播勝利演出）
@@ -177,6 +191,8 @@ export function createPerformer({ stage, audio, heroImages, leaderImages, getSet
     if (!faction) tl.add(endAt + 650, () => cutin.showLeaderCutin({ faction: 'gojo', image: leaderImages.gojo, titleJa: FACTIONS.gojo.unisonJa, reading: FACTIONS.gojo.unisonReading, lifeMs: 700 }));
     if (!faction) tl.add(endAt + 3200, () => cutin.showBanner('勢均力敵', 'sukuna', { lifeMs: 1500 }));
     tl.setDuration(ending.duration);
+    // 結局動畫演完就立刻顯示勝負（原本固定等到 8 秒，中間會有空白）
+    tl.endEarlyWhen(stageQuiet, { afterMs: lastBeat(ending.beats) + 600 });
     tl.onSkip(skipCleanup);
     const r = await run(tl);
     audio.duck(false);

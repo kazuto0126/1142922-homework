@@ -297,9 +297,20 @@ export function orb(stage, pos, { color = '#ffffff', grow = [0.1, 1.2], life = 0
 export const wait = ms => new Promise(r => setTimeout(r, ms));
 
 /** ms 毫秒後執行 fn；如果棋盤在這之間被清掉（重開一局），就不執行。 */
+const pending = new WeakMap(); // stage → 還沒觸發的延遲特效數量
+
 export function later(stage, ms, fn) {
   const gen = stage.fxGeneration;
-  setTimeout(() => { if (stage.fxGeneration === gen) fn(); }, ms);
+  pending.set(stage, (pending.get(stage) || 0) + 1);
+  setTimeout(() => {
+    pending.set(stage, Math.max(0, (pending.get(stage) || 1) - 1));
+    if (stage.fxGeneration === gen) fn();
+  }, ms);
+}
+
+/** 還沒觸發的延遲特效數量（判斷演出是不是真的演完了）。 */
+export function pendingFx(stage) {
+  return pending.get(stage) || 0;
 }
 
 /** 粒子從四周往 center 聚集（聚氣、吸氣）。 */

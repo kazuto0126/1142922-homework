@@ -93,6 +93,11 @@ export function flashScreen(color = '#ffffff', ms = 380) {
   return mount(el, ms);
 }
 
+/** 畫面上還有幾個 cut-in / 大字。 */
+export function activeCount() {
+  return layer ? layer.children.length : 0;
+}
+
 export function clearAll() {
   if (layer) layer.replaceChildren();
 }

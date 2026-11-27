@@ -12,6 +12,17 @@ export class Timeline {
     this._state = 'idle'; // idle | playing | done | skipped | cancelled
     this._resolve = null;
     this._skipHandlers = [];
+    this._early = null;
+    this._quietSince = null;
+  }
+
+  /**
+   * 提早結束：所有步驟都跑過、而且已經過了 afterMs 之後，只要 isQuiet() 連續 stableMs 都成立，
+   * 就直接算演完（不用等到 setDuration 的長度）。setDuration 仍然是上限。
+   */
+  endEarlyWhen(isQuiet, { afterMs = 0, stableMs = 300 } = {}) {
+    this._early = { isQuiet, afterMs, stableMs };
+    return this;
   }
 
   add(atMs, fn) {
@@ -47,7 +58,15 @@ export class Timeline {
       this._safe(step.fn);
       if (this._state !== 'playing') return; // 步驟裡可能呼叫了 skip / cancel
     }
-    if (this._next >= this._steps.length && elapsed >= this._duration) this._finish('done');
+    if (this._next < this._steps.length) return;
+    if (elapsed >= this._duration) { this._finish('done'); return; }
+    if (this._early && elapsed >= this._early.afterMs) {
+      let quiet = false;
+      try { quiet = !!this._early.isQuiet(); } catch (e) { this._onError(e); }
+      if (!quiet) this._quietSince = null;
+      else if (this._quietSince === null) this._quietSince = elapsed;
+      else if (elapsed - this._quietSince >= this._early.stableMs) this._finish('done');
+    }
   }
 
   skip() {

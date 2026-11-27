@@ -66,3 +66,34 @@ test('步驟丟錯不會卡住整個時間軸', async () => {
   assert.deepEqual(errors, ['boom']);
   assert.equal(await done, 'done');
 });
+
+test('endEarlyWhen：步驟都跑完、過了 afterMs、安靜持續 stableMs 才提早結束；上限仍是 setDuration', async () => {
+  const clock = { t: 0 };
+  let quiet = false;
+  const tl = new Timeline({ now: () => clock.t });
+  tl.add(0, () => {}).add(1000, () => {}).setDuration(8000).endEarlyWhen(() => quiet, { afterMs: 2000, stableMs: 300 });
+  const done = tl.play();
+  quiet = true;
+  clock.t = 1500; tl.update();          // 還沒過 afterMs
+  assert.equal(tl.state, 'playing');
+  clock.t = 2100; tl.update();          // 開始安靜
+  clock.t = 2300; tl.update();          // 安靜才 200ms
+  assert.equal(tl.state, 'playing');
+  quiet = false; clock.t = 2350; tl.update(); // 又有動靜，重新計時
+  quiet = true; clock.t = 2500; tl.update();
+  clock.t = 2700; tl.update();
+  assert.equal(tl.state, 'playing');
+  clock.t = 2850; tl.update();          // 連續安靜 350ms
+  assert.equal(await done, 'done');
+});
+
+test('endEarlyWhen：一直不安靜就照原本的長度結束', async () => {
+  const clock = { t: 0 };
+  const tl = new Timeline({ now: () => clock.t });
+  tl.add(0, () => {}).setDuration(3000).endEarlyWhen(() => false, { afterMs: 500 });
+  const done = tl.play();
+  clock.t = 2900; tl.update();
+  assert.equal(tl.state, 'playing');
+  clock.t = 3000; tl.update();
+  assert.equal(await done, 'done');
+});
