@@ -39,6 +39,7 @@
     WORLDS.forEach(w => stage.setWorldImage(w.cell, tileCanvas(w, emblems[w.id])));
     const { fxWarmupObjects } = await import('./js/fx/warmup.js');
     await stage.warmup(fxWarmupObjects(stage));
+    stage.warmDraw();
     const audio = createAudio(DEFAULT_SETTINGS);
     document.addEventListener('pointerdown', () => audio.unlock());
     const performer = createPerformer({ stage, audio, heroImages, getSettings: () => ({ ...DEFAULT_SETTINGS }) });

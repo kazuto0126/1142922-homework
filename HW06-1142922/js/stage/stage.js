@@ -584,51 +584,9 @@ export function createStage(canvas, { quality = 'high' } = {}) {
     c.claim = null;
   }
 
-  /**
-   * 主角加入陣營：立繪只跳出來約 1 秒就淡出（不擋視線）；
-   * 之後格子上只留陣營棋子，不放頭像（使用者要求）。
-   */
-  // 立繪貼圖快取：每張圖只建立、上傳到顯示卡一次（第一次跳出立繪時才不會卡一下）
-  const standeeTex = new Map();
-  function standeeTexture(image) {
-    if (!standeeTex.has(image)) standeeTex.set(image, textureFrom(image));
-    return standeeTex.get(image);
-  }
-  /** 封面時先把立繪上傳到顯示卡。 */
-  function preloadImages(images) {
-    for (const img of images) {
-      try { renderer.initTexture(standeeTexture(img)); } catch (e) { console.warn('preloadImages', e); }
-    }
-  }
-
-  function placeStandee(i, faction, image) {
-    const c = cells[i];
-    if (c.standee) return c.standee;
-    const group = new THREE.Group();
-    group.position.set(c.center.x - 0.25, 0, c.center.z - 0.2);
-    group.userData.baseY = TILE_TOP + 0.02;
-
-    // 暫時跳出來的立繪
-    const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: standeeTexture(image), transparent: true, depthWrite: false, opacity: 0 }));
-    const aspect = (image.width || 1) / (image.height || 1);
-    const h = 1.6;
-    sprite.scale.set(h * aspect, h, 1);
-    sprite.center.set(0.5, 0);
-    group.add(sprite);
-
-    pieces.add(group);
-    c.standee = group;
-    tween(1500, k => {
-      // 0–15% 升起淡入、15–70% 停留、70–100% 下沉淡出
-      const show = k < 0.15 ? k / 0.15 : k < 0.7 ? 1 : 1 - (k - 0.7) / 0.3;
-      sprite.material.opacity = show;
-      sprite.position.y = (1 - Math.min(1, k / 0.15)) * -0.3 + (k > 0.7 ? -(k - 0.7) * 0.8 : 0);
-      if (k >= 1 && sprite.parent) {
-        group.remove(sprite);
-        sprite.material.dispose(); // 貼圖留在快取裡，下次直接用
-      }
-    });
-    return group;
+  /** 角色立繪不再出現在棋盤上（使用者覺得奇怪，只保留 cut-in），留著這個介面讓呼叫端不用改。 */
+  function placeStandee() {
+    return null;
   }
 
   function setFrameColor(i, color) {
@@ -721,12 +679,27 @@ export function createStage(canvas, { quality = 'high' } = {}) {
     keepAlive.visible = true;
     try {
       // 要用跟實際繪製一樣的輸出目標編譯（後製畫面是線性色彩、不做色調映射，跟直接畫到螢幕的著色器版本不同）
+      // compileAsync 用瀏覽器的平行編譯，不會卡住主執行緒（封面動畫才不會頓）
       const prev = renderer.getRenderTarget();
       renderer.setRenderTarget(useComposer ? composer.readBuffer : null);
       const p = renderer.compileAsync(scene, camera);
       renderer.setRenderTarget(prev);
       await p;
-      // 顯示卡驅動要等「第一次真的畫」才把著色器準備完，所以用一台對著樣本的鏡頭，在畫面外真的畫一次
+    } catch (e) {
+      console.warn('warmup', e);
+    } finally {
+      keepAlive.visible = false;
+    }
+  }
+
+  /**
+   * 真的畫一次（顯示卡驅動要等第一次真的畫才把著色器準備完）。這一步會佔住主執行緒一下，
+   * 所以等按下 START、全螢幕登入動畫蓋住畫面時才做。
+   */
+  function warmDraw() {
+    keepAlive.visible = true;
+    const prev = renderer.getRenderTarget();
+    try {
       const warmCam = new THREE.PerspectiveCamera(60, 1, 0.1, 50);
       warmCam.position.set(0, -398, 6);
       warmCam.lookAt(0, -400, 0);
@@ -737,10 +710,56 @@ export function createStage(canvas, { quality = 'high' } = {}) {
       warmRT.dispose();
       frame(); // 再畫一幀正常畫面：陰影、後製用的著色器也一起準備好
     } catch (e) {
-      console.warn('warmup', e);
+      console.warn('warmDraw', e);
+      renderer.setRenderTarget(prev);
     } finally {
       keepAlive.visible = false;
     }
+  }
+
+  let running = true;
+  /** 暫停 / 恢復 3D 繪製（封面完全蓋住棋盤時不用畫，省下主執行緒給封面動畫）。 */
+  function setRunning(on) {
+    if (running === !!on) return;
+    running = !!on;
+    clock.getDelta(); // 恢復時不要把暫停的時間算成一大步
+    renderer.setAnimationLoop(running ? frame : null);
+  }
+
+  /**
+   * 入場運鏡：從遠處高空繞著整個場景轉一圈（看遍四個方位的天空），再降到棋盤上方的預設視角。
+   * 點一下或按任意鍵可以直接跳到結尾。回傳結束時 resolve 的 Promise。
+   */
+  function introSweep(ms = 4200) {
+    const target0 = new THREE.Vector3(0, 1.2, 0);
+    const endPos = viewToPosition(DEFAULT_VIEW);
+    const endTarget = DEFAULT_VIEW.target.clone();
+    const endSph = new THREE.Spherical().setFromVector3(endPos.clone().sub(endTarget));
+    const a0 = endSph.theta - Math.PI * 2; // 繞一整圈後剛好停在預設方位
+    saved = null;
+    let skip = null;
+    const p = cameraTween(ms, k => {
+      const e = ease(k);
+      // 前 75%：大半徑繞圈並慢慢下降；後 25%：平滑接到預設視角
+      const orbitK = Math.min(1, k / 0.75);
+      const az = a0 + (endSph.theta - a0) * ease(orbitK);
+      const dist = 30 - 10 * orbitK;
+      const pol = (74 - 14 * orbitK) * DEG;
+      const orbitPos = new THREE.Spherical(dist, pol, az);
+      const pos = new THREE.Vector3().setFromSpherical(orbitPos).add(target0);
+      const blend = k < 0.75 ? 0 : ease((k - 0.75) / 0.25);
+      camera.position.copy(pos).lerp(endPos, blend);
+      controls.target.copy(target0).lerp(endTarget, Math.max(blend, e * 0.3));
+      camera.lookAt(controls.target);
+    });
+    skip = () => { if (camTween) { snapBack(); setView(DEFAULT_VIEW); } };
+    window.addEventListener('pointerdown', skip, { once: true });
+    window.addEventListener('keydown', skip, { once: true });
+    return p.finally(() => {
+      window.removeEventListener('pointerdown', skip);
+      window.removeEventListener('keydown', skip);
+      setView(DEFAULT_VIEW);
+    });
   }
 
   setQuality(quality);
@@ -750,7 +769,7 @@ export function createStage(canvas, { quality = 'high' } = {}) {
     scene, camera, renderer, controls, fxLayer,
     cellCenter: i => cells[i].center.clone(),
     pickCell, setHover, setWorldImage, placePiece, placeStandee, clearBoard, takeCell, cellsOf, resetEnvironment, cancelFx, onCancelFx,
-    onFrame, tween, flyTo, borrowLight, warmup, mirror, composer, bloom, setSkyMood, preloadImages,
+    onFrame, tween, flyTo, borrowLight, warmup, warmDraw, setRunning, introSweep, mirror, composer, bloom, setSkyMood,
     get perf() { return { level: perf.level, fps: perf.fps, pixelRatio: renderer.getPixelRatio(), mirror: mirror.enabled }; },
     /** 開發用：停掉自動更新，改成手動推進（瀏覽器暫停動畫時截圖用）。 */
     manualTick(on) { renderer.setAnimationLoop(on ? null : frame); return frame; }, orbitLine, restoreView, snapBack, resetView, setQuality, shake, impact,
