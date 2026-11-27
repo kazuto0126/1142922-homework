@@ -1,7 +1,8 @@
 // 進入點：建立舞台、載入素材、畫面流程與對局流程。
 import { createStage, supportsWebGL, CELL } from './stage/stage.js';
-import { createBoardHud } from './stage/boardHud.js';
+import { createBoardHud, hudWarmupObjects } from './stage/boardHud.js';
 import { cpuInsight, threats } from './core/insight.js';
+import { moveDamage, MAX_HP } from './core/hp.js';
 import { createMatch, outcomeFor } from './core/match.js';
 import { EMPTY, X, O } from './core/rules.js';
 import { WORLDS, FACTIONS } from './core/worlds.js';
@@ -73,7 +74,7 @@ async function boot() {
   const emblems = await loadEmblems();
   WORLDS.forEach(w => stage.setWorldImage(w.cell, tileCanvas(w, emblems[w.id])));
   // 在封面畫面時先把特效的著色器平行編譯好（不等它，背景進行）
-  stage.warmup(fxWarmupObjects(stage));
+  stage.warmup([...fxWarmupObjects(stage), ...hudWarmupObjects()]);
   // 九首歌在背景一首一首先下載（進瀏覽器快取），之後換歌就不用等下載
   (async () => {
     const order = [SAO_CELL, ...WORLDS.map(w => w.cell).filter(c => c !== SAO_CELL)];
@@ -168,6 +169,7 @@ async function boot() {
     app.screen = 'playing';
     performer.cancelCurrent();
     app.match = createMatch({ mode: app.mode, firstFaction: app.faction });
+    app.hp = { gojo: MAX_HP, sukuna: MAX_HP };
     app.busy = false;
     app.thinking = false;
     boardHud.clearAll();
@@ -191,6 +193,15 @@ async function boot() {
 
   async function show(event) {
     await performer.performMove(event);
+  }
+
+  /** 這一步打在對手身上的傷害（SAO 風格 HP 條）。 */
+  function applyHp(event) {
+    const foe = event.faction === 'gojo' ? 'sukuna' : 'gojo';
+    const dmg = moveDamage(event.classification, app.hp[foe]);
+    app.hp[foe] -= dmg;
+    screens.setHp(foe, app.hp[foe], dmg);
+    if (dmg > 0) audio.sfx('impact', { pitch: 1.9, gain: 0.35 });
   }
 
   /** 對局結束：先記戰績，播合體技與結局演出，最後換結局曲、顯示結局畫面。 */
@@ -236,9 +247,12 @@ async function boot() {
     const m = app.match;
     app.busy = true;
     try {
+      boardHud.breakBarrier(cell, m.factionOf[m.turn()], { sfx: hudSfx }); // 五條悟擋在無下限護盾的那一格：護盾往外炸開
       boardHud.setThreats([]); // 下棋演出時先收掉警示，演完再重算
-      await show(m.play(cell));
+      const ev = m.play(cell);
+      await show(ev);
       if (app.match !== m) return;
+      applyHp(ev);
       screens.updateHud(hudState());
       updateThreats(m);
       if (!m.isOver() && m.isCpuTurn()) {
@@ -250,10 +264,13 @@ async function boot() {
         else await boardHud.think(cpuInsight(m.board), choice, { sfx: hudSfx, faction: m.factionOf[O] });
         if (app.match !== m) return; // 中途回到標題或重開
         boardHud.clearInsight();
+        boardHud.breakBarrier(choice, m.factionOf[O], { sfx: hudSfx }); // 宿儺硬闖進護盾：護盾被斬碎
         boardHud.setThreats([]);
         app.thinking = false;
-        await show(m.cpuPlay(null, choice));
+        const cev = m.cpuPlay(null, choice);
+        await show(cev);
         if (app.match !== m) return;
+        applyHp(cev);
         screens.updateHud(hudState());
         updateThreats(m);
       }

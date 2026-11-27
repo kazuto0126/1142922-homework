@@ -1,5 +1,6 @@
 // 畫面：標題、選模式、選陣營、HUD、結局、設定、素材來源。介面文字一律中文。
 import { FACTIONS } from '../core/worlds.js';
+import { MAX_HP, hpTone } from '../core/hp.js';
 import { imageSrc } from './cutin.js';
 import { mountLive2d } from './live2d.js';
 
@@ -108,13 +109,48 @@ export function createScreens(root, handlers, { leaderImages }) {
   }
 
   // ── HUD ──
+  /** SAO 風格的 HP 條：名字 + 斜切的血條（綠 → 黃 → 紅，後面有一條延遲的扣血殘影）+ 數字。 */
+  function hpBlock(f, name) {
+    return `<div class="info">
+        <b>${name}<i class="lv">Lv.${f === 'gojo' ? 28 : 1000}</i></b>
+        <div class="sao-hp ok" data-hp="${f}"><div class="trail"></div><div class="fill"></div></div>
+        <div class="hp-row"><small data-role="${f}"></small><span class="hp-num" data-hpnum="${f}">${MAX_HP} / ${MAX_HP}</span></div>
+      </div>`;
+  }
+
+  /** 設定血量（有扣血時播扣血動畫、跳出傷害數字）。 */
+  function setHp(f, hp, dmg = 0) {
+    const el = layer('hud');
+    const bar = el.querySelector(`[data-hp=${f}]`);
+    if (!bar) return;
+    const r = Math.max(0, hp) / MAX_HP;
+    bar.querySelector('.fill').style.transform = `scaleX(${r})`;
+    bar.className = `sao-hp ${hpTone(hp)}`;
+    // 殘影晚一點才跟上，看得出這一下扣了多少
+    const trail = bar.querySelector('.trail');
+    if (dmg > 0) setTimeout(() => { trail.style.transform = `scaleX(${r})`; }, 450);
+    else trail.style.transform = `scaleX(${r})`;
+    el.querySelector(`[data-hpnum=${f}]`).textContent = `${Math.max(0, hp)} / ${MAX_HP}`;
+    if (dmg > 0) {
+      const side = el.querySelector(`.side.${f}`);
+      side.classList.remove('hit');
+      void side.offsetWidth; // 重新觸發動畫
+      side.classList.add('hit');
+      const pop = document.createElement('span');
+      pop.className = 'dmg-pop';
+      pop.textContent = `-${dmg}`;
+      bar.parentElement.appendChild(pop);
+      setTimeout(() => pop.remove(), 1100);
+    }
+  }
+
   function showHud(state) {
     const el = layer('hud');
     el.innerHTML = `
       <div class="hud-bar">
-        <div class="side sukuna"><img alt="" src="${esc(leaderSrc('sukuna'))}"><div><b>宿儺</b><small data-role="sukuna"></small></div></div>
+        <div class="side sukuna"><img alt="" src="${esc(leaderSrc('sukuna'))}">${hpBlock('sukuna', '宿儺')}</div>
         <div class="center"><div class="turn"></div><div class="stats"></div></div>
-        <div class="side gojo"><div><b>五條悟</b><small data-role="gojo"></small></div><img alt="" src="${esc(leaderSrc('gojo'))}"></div>
+        <div class="side gojo">${hpBlock('gojo', '五條悟')}<img alt="" src="${esc(leaderSrc('gojo'))}"></div>
       </div>
       <div class="hud-tools">
         <button class="icon" data-act="settings" title="設定">⚙</button>
@@ -223,7 +259,7 @@ export function createScreens(root, handlers, { leaderImages }) {
   }
 
   return {
-    showTitle, showMode, showFaction, showHud, updateHud, showResult, hideResult, openSettings, openCredits,
+    showTitle, showMode, showFaction, showHud, updateHud, setHp, showResult, hideResult, openSettings, openCredits,
     hideAll: () => only(),
   };
 }
