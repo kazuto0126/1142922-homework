@@ -120,6 +120,7 @@ async function boot() {
     app.match = null;
     performer.cancelCurrent();
     boardHud.clearAll();
+    stage.setSkyMood({ bias: 0, winner: null });
     stage.clearBoard();
     stage.resetView();
     stage.controls.autoRotate = true;
@@ -141,6 +142,7 @@ async function boot() {
     app.busy = false;
     app.thinking = false;
     boardHud.clearAll();
+    stage.setSkyMood({ bias: 0, winner: null });
     stage.clearBoard();
     stage.controls.autoRotate = false;
     stage.resetView();
@@ -159,7 +161,11 @@ async function boot() {
   /** 危機警示：只差一格就連線的格子（用威脅那一方的陣營色）。 */
   function updateThreats(m) {
     if (m.isOver()) { boardHud.clearAll(); return; }
-    boardHud.setThreats(threats(m.board).map(t => ({ cell: t.cell, faction: m.factionOf[t.mark] })), { sfx: hudSfx });
+    const list = threats(m.board).map(t => ({ cell: t.cell, faction: m.factionOf[t.mark] }));
+    boardHud.setThreats(list, { sfx: hudSfx });
+    // 天空氣氛：誰只差一格的地方比較多，那一側的天空和光就變亮
+    const g = list.filter(t => t.faction === 'gojo').length, s = list.filter(t => t.faction === 'sukuna').length;
+    stage.setSkyMood({ bias: 0.6 * (g - s) });
   }
 
   async function finish() {
