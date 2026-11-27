@@ -11,6 +11,7 @@ import { playDomainClash, clearClash } from './ui/clash.js';
 
 export function createPerformer({ stage, audio, heroImages, leaderImages, getSettings }) {
   let current = null;
+  let lastCell = null; // 最後一手下在哪一格（領域對決時放那一格的歌）
   let epoch = 0; // cancelCurrent() 時 +1；演出各段之間檢查，避免取消後下一段又開始
 
   /** 以舞台的每一幀驅動時間軸。 */
@@ -27,6 +28,7 @@ export function createPerformer({ stage, audio, heroImages, leaderImages, getSet
 
   async function performMove(event) {
     const { index: cell, faction, tier } = event;
+    lastCell = cell;
     const world = WORLDS[cell];
     const pal = palette(faction);
     const fx = makeFx({ stage, cell, faction, tier, audio, world, pal });
@@ -177,8 +179,8 @@ export function createPerformer({ stage, audio, heroImages, leaderImages, getSet
     if (ending.beats.some(b => b.kind === 'clash')) {
       tl.add(0, () => {
         audio.duck(false);
-        // 對決時不放音效；隨機挑一首歌、而且放大聲
-        audio.music.playCell(Math.floor(Math.random() * WORLDS.length));
+        // 對決時不放音效；放最後一手那一格的歌（使用者要求），而且放大聲
+        audio.music.playCell(lastCell ?? Math.floor(Math.random() * WORLDS.length));
         audio.boostMusic(true);
         playDomainClash({ outcome: faction === 'sukuna' ? 'lose' : 'draw' });
       });
