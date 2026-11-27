@@ -16,7 +16,7 @@ export const STEP = CELL + GAP;
 const TILE_TOP = 0.125;
 const DEG = Math.PI / 180;
 const FRAME_GLOW = 1.8; // 邊框發光線的 HDR 亮度（超過泛光門檻才會發光）
-const DEFAULT_VIEW = { polar: 50 * DEG, azimuth: 0, distance: 13, target: new THREE.Vector3(0, 0, 0.5) };
+const DEFAULT_VIEW = { polar: 50 * DEG, azimuth: 0, distance: 16.5, target: new THREE.Vector3(0, 0, 0.5) };
 
 export function supportsWebGL() {
   if (new URLSearchParams(location.search).has('nowebgl')) return false;
@@ -55,8 +55,8 @@ export function createStage(canvas, { quality = 'high' } = {}) {
   controls.rotateSpeed = 0.6;
   controls.minPolarAngle = 20 * DEG;
   controls.maxPolarAngle = 75 * DEG;
-  controls.minDistance = 7;
-  controls.maxDistance = 19;
+  controls.minDistance = 8;
+  controls.maxDistance = 26;
 
   // ── 燈光 ──
   // 主光（暖白、投影）+ 冷色輪廓光 + 兩側陣營色補光
@@ -417,7 +417,7 @@ export function createStage(canvas, { quality = 'high' } = {}) {
     });
   }
 
-  function flyTo(i, ms = 700, distance = 7.4) {
+  function flyTo(i, ms = 700, distance = 9.5) {
     saveView();
     const target = cells[i].center.clone();
     const pos = viewToPosition({ polar: 52 * DEG, azimuth: currentAzimuth(), distance, target });
@@ -432,7 +432,7 @@ export function createStage(canvas, { quality = 'high' } = {}) {
     const startTarget = controls.target.clone();
     return cameraTween(ms, k => {
       const e = ease(k);
-      const orbit = viewToPosition({ polar: 58 * DEG, azimuth: a0 + e * Math.PI * 0.9, distance: 10.5, target });
+      const orbit = viewToPosition({ polar: 58 * DEG, azimuth: a0 + e * Math.PI * 0.9, distance: 13.5, target });
       const blend = Math.min(1, k * 4); // 前 25% 從原本的位置滑進軌道
       camera.position.lerpVectors(startPos, orbit, blend);
       controls.target.lerpVectors(startTarget, target, blend);
@@ -827,6 +827,7 @@ function dispose(obj) {
     if (o.geometry && !o.geometry.userData.shared) o.geometry.dispose(); // 共用幾何不丟
     if (o.material) {
       for (const m of [].concat(o.material)) {
+        if (m.userData && m.userData.shared) continue; // 共用材質不丟
         if (m.map && m.map.dispose) m.map.dispose();
         m.dispose();
       }

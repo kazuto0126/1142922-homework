@@ -4,6 +4,7 @@ import * as THREE from 'three';
 import { emit, ring, arcs, bolt, spawn, glowMat, later, residue, rand, easeOut } from '../common.js';
 import { hit, energyMaterial, sparks } from '../realism.js';
 import { makeCoin } from '../models.js';
+import { stormField } from '../boardCover.js';
 
 /** 抽象的電光手：手掌 + 四根彎起的手指 + 可以動的拇指。回傳 { group, thumb }。 */
 function makeElectricHand(stage) {
@@ -141,6 +142,8 @@ export default function (fx) {
   // 光束掠過格子上方：命中
   later(stage, 1110, () => {
     hit(fx, { power: 1.3, color: orange, smokeColor: '#4a4a55', at: target.clone() });
+    // 電場：從這一格擴散蓋滿整個棋盤，閃電在格子之間亂竄
+    stormField(stage, pos, { mul });
     arcs(stage, target, { count: 12 * mul, radius: 1.6 * scale, color: '#bfe8ff', life: 0.6, width: 0.04 });
     emit(stage, { pos: target, count: 120 * mul, color: orange, color2: '#fff1c8', speed: 8 * scale, drag: 2, life: 0.5, size: 0.28 });
     audio.sfx('impact', { pitch: 1.2 });

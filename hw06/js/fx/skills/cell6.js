@@ -3,6 +3,7 @@
 import * as THREE from 'three';
 import { emit, ring, flash, converge, spawn, later, residue, rand } from '../common.js';
 import { hit, energyMaterial, smoke } from '../realism.js';
+import { fireSea } from '../boardCover.js';
 
 export default function (fx) {
   const { stage, pos, audio, mul, scale } = fx;
@@ -90,6 +91,8 @@ export default function (fx) {
   later(stage, 420, () => {
     ring(stage, pos, { color: fire, radius: 2.6 * scale, life: 0.6, width: 0.2 });
     hit(fx, { power: 1.15, color: '#ff6a1f', smokeColor: '#2a2220', debrisColor: '#3a2a22', at: aim.clone() });
+    // 火海：從這一格往外燒滿整個棋盤，一陣子之後退去
+    fireSea(stage, pos, { mul });
     audio.sfx('explode', { pitch: 1.0, gain: 0.8 });
   });
 
