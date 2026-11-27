@@ -43,6 +43,8 @@ async function boot() {
   let settings = loadSettings(storage);
   const stats = createStats(storage);
   const stage = createStage(canvas, { quality: settings.quality });
+  // 封面完全蓋住棋盤：先不要畫 3D（第一次畫會一次編譯幾十個著色器、卡住封面動畫），按下 START 才開始畫
+  stage.setRunning(false);
   const audio = createAudio(settings);
   const boardHud = createBoardHud(stage, { cellSize: CELL }); // 電腦思考的視覺化、危機警示
   const hudSfx = (name, opts) => audio.sfx(name, opts);
@@ -60,9 +62,8 @@ async function boot() {
   const leaderImages = { sukuna: leaderList[0], gojo: leaderList[1] };
   const emblems = await loadEmblems();
   WORLDS.forEach(w => stage.setWorldImage(w.cell, tileCanvas(w, emblems[w.id])));
-  // 在封面畫面時先把特效的著色器編譯好、立繪上傳到顯示卡（不等它，背景進行）
+  // 在封面畫面時先把特效的著色器平行編譯好（不等它，背景進行）
   stage.warmup(fxWarmupObjects(stage));
-  stage.preloadImages([...heroImages, ...Object.values(leaderImages)]);
   // 九首歌在背景一首一首先下載（進瀏覽器快取），之後換歌就不用等下載
   (async () => {
     const order = [SAO_CELL, ...WORLDS.map(w => w.cell).filter(c => c !== SAO_CELL)];
@@ -88,6 +89,9 @@ async function boot() {
       app.diving = true;
       await audio.unlock();
       document.querySelector('.boot')?.classList.add('diving');
+      // 開始畫 3D；第一次真正的繪製（會佔住主執行緒一下）放在登入動畫一開始的白畫面底下
+      stage.setRunning(true);
+      requestAnimationFrame(() => stage.warmDraw());
       // 登入動畫蓋住整個畫面時，在棋盤上靜音預演幾招：顯示卡第一次畫這些特效會卡一下，先在看不到的時候卡掉
       const stopRehearsal = rehearse(stage);
       // 「リンク・スタート」語音 + 潛入音效（使用者提供的原版音檔），動畫跟著聲音的時間點走
@@ -133,6 +137,7 @@ async function boot() {
     stage.clearBoard();
     stage.resetView();
     stage.controls.autoRotate = true;
+    stage.setRunning(false); // 封面蓋住棋盤時不畫 3D
     stage.controls.autoRotateSpeed = 0.6;
     screens.hideResult();
     screens.showTitle();
@@ -158,6 +163,13 @@ async function boot() {
     screens.hideResult();
     screens.showHud(hudState());
     audio.music.playCell(SAO_CELL);
+    // 入場運鏡：繞著整個場景轉一圈、看遍四方的天空，再降到棋盤上方（精簡模式跳過；點一下可以跳過）
+    if (!settings.shortMode) {
+      const m = app.match;
+      app.busy = true;
+      audio.sfx('whoosh', { pitch: 0.5 });
+      stage.introSweep(4200).then(() => { if (app.match === m) app.busy = false; });
+    }
   }
 
   const performer = createPerformer({ stage, audio, heroImages, leaderImages, getSettings: () => settings });

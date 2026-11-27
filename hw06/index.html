@@ -6,6 +6,11 @@
   <title>HW06-1142922許舜甯</title>
   <meta name="description" content="1142922 HW06 網頁版井字棋：電腦後手絕不會輸。宿儺與五條悟穿越九個動漫世界的 3D 對決。">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%2305060d'/%3E%3Cpath d='M11 4v24M21 4v24M4 11h24M4 21h24' stroke='%233fd0ff' stroke-width='2.5'/%3E%3Ccircle cx='16' cy='16' r='3.5' fill='%238a5cff'/%3E%3C/svg%3E">
+  <script>
+    // 開發檢查用：記錄載入時佔住主執行緒超過 50ms 的長任務（不影響遊戲）
+    window.__longtasks = [];
+    try { new PerformanceObserver(l => { for (const e of l.getEntries()) window.__longtasks.push([Math.round(e.startTime), Math.round(e.duration)]); }).observe({ type: 'longtask', buffered: true }); } catch (e) {}
+  </script>
   <link rel="preload" href="fonts/dela-gothic-one-subset.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="css/style.css">
   <link rel="stylesheet" href="css/ui.css">
