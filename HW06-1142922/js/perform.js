@@ -3,7 +3,7 @@
 import { Timeline } from './core/timeline.js';
 import { planMove, planUnison, planEnding } from './core/director.js';
 import { WORLDS, FACTIONS } from './core/worlds.js';
-import { palette, ring } from './fx/common.js';
+import { palette, ring, emit, converge, orb, flash, later } from './fx/common.js';
 import { SKILLS, makeFx } from './fx/skills/index.js';
 import * as leaders from './fx/leaders.js';
 import * as cutin from './ui/cutin.js';
@@ -31,7 +31,8 @@ export function createPerformer({ stage, audio, heroImages, leaderImages, getSet
     const pal = palette(faction);
     const fx = makeFx({ stage, cell, faction, tier, audio, world, pal });
     const plan = planMove(event, { shortMode: getSettings().shortMode });
-    const usesCam = plan.beats.some(b => b.kind === 'keyCam');
+    const usesCam = plan.beats.some(b => b.kind === 'keyCam' || b.kind === 'softCam');
+    const big = tier !== 'normal';
 
     let settled = false;
     const settle = () => {
@@ -49,6 +50,32 @@ export function createPerformer({ stage, audio, heroImages, leaderImages, getSet
     const handlers = {
       entrance: () => leaders.entrance(fx),
       keyCam: () => { audio.duck(true); stage.flyTo(cell, 650); },
+      // 一般落子：鏡頭輕輕推近（比關鍵一手遠一點）
+      softCam: () => stage.flyTo(cell, 900, 10.5),
+      // 蓄力：能量從四周往格子聚集、光球慢慢變大、地面一圈圈收縮的光環，最後一下閃光
+      charge: () => {
+        const p = fx.pos.clone().setY(fx.pos.y + 0.7);
+        const n = big ? 4 : 3;
+        audio.sfx('charge', { pitch: big ? 0.7 : 0.9 });
+        for (let i = 0; i < n; i++) {
+          later(stage, i * 170, () => {
+            converge(stage, p, { radius: (big ? 2.8 : 2.2) - i * 0.25, count: big ? 90 : 60, color: fx.color, color2: pal.accent, life: 0.45, size: 0.22 });
+            ring(stage, fx.pos, { color: fx.color, radius: 0.4, life: 0.35, width: 0.06, y: 0.05 + i * 0.04 });
+          });
+        }
+        orb(stage, p, { color: fx.color, grow: [0.05, big ? 0.7 : 0.5], life: big ? 0.9 : 0.6, opacity: [0.2, 0.9] });
+        later(stage, big ? 850 : 560, () => flash(stage, fx.pos, { color: fx.color, intensity: big ? 30 : 18, life: 0.25 }));
+      },
+      // 餘韻：飄起來的餘燼、慢慢擴散的波紋，讓命中之後還有幾秒的「味道」
+      aftermath: () => {
+        const n = big ? 5 : 3;
+        for (let i = 0; i < n; i++) {
+          later(stage, i * 260, () => {
+            emit(stage, { pos: fx.pos.clone().setY(fx.pos.y + 0.2), count: big ? 40 : 24, color: fx.color, color2: pal.accent, shape: 'up', angle: 0.6, speed: 1.2, speedVar: 0.5, gravity: 0.4, drag: 0.6, life: 1.6, size: 0.16, radius: 1.0, alpha: 0.8 });
+            ring(stage, fx.pos, { color: i % 2 ? pal.primary : fx.color, radius: (big ? 3.2 : 2.4) + i * 0.3, life: 1.1, width: 0.03, y: 0.03 });
+          });
+        }
+      },
       keyBanner: () => {
         cutin.showBanner(tier === 'finish' ? '決着' : '会心の一手', faction, { lifeMs: 380 });
         audio.sfx('cutin', { pitch: 0.8 });
@@ -57,8 +84,8 @@ export function createPerformer({ stage, audio, heroImages, leaderImages, getSet
         cutin.showCutin({
           heroJa: world.heroJa, moveJa: world.moveJa, reading: world.reading, line: world.line,
           faction, image: heroImages[cell], tier: tier === 'normal' ? 'normal' : 'key', worldColor: world.color,
-          // cut-in 要在技能打出來（normal 500 ms、key 1200 ms）前後退場，3D 技能才看得到
-          lifeMs: tier === 'normal' ? 750 : 650,
+          // cut-in 停留久一點，在蓄力開始前退場，3D 技能才看得到
+          lifeMs: tier === 'normal' ? 900 : 1150,
         });
         audio.sfx('cutin');
       },

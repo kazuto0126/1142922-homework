@@ -5,31 +5,36 @@ import { busGains, MUSIC_RATIO, DUCK } from '../js/core/audioPlan.js';
 import { isClick, CLICK_MAX_PX } from '../js/core/pointer.js';
 
 test('演出長度常數', () => {
-  assert.deepEqual(DUR, { normal: 2200, key: 3800, short: 900, unison: 6500, ending: 8000 });
+  assert.deepEqual(DUR, { normal: 4200, key: 7000, short: 900, unison: 6500, ending: 8000 });
 });
 
 test('一般落子的拍點', () => {
   assert.deepEqual(planMove({ tier: 'normal' }, { shortMode: false }), {
-    duration: 2200,
+    duration: 4200,
     beats: [
       { at: 0, kind: 'entrance' },
+      { at: 0, kind: 'softCam' },
       { at: 300, kind: 'cutin' },
-      { at: 700, kind: 'skill' },
-      { at: 2000, kind: 'settle' },
+      { at: 1250, kind: 'charge' },
+      { at: 1900, kind: 'skill' },
+      { at: 3000, kind: 'aftermath' },
+      { at: 3300, kind: 'settle' },
     ],
   });
 });
 
 test('關鍵一手的拍點', () => {
   assert.deepEqual(planMove({ tier: 'key' }, { shortMode: false }), {
-    duration: 3800,
+    duration: 7000,
     beats: [
       { at: 0, kind: 'entrance' },
       { at: 0, kind: 'keyCam' },
       { at: 300, kind: 'keyBanner' },
       { at: 700, kind: 'cutin' },
-      { at: 1300, kind: 'skill' },
-      { at: 3500, kind: 'settle' },
+      { at: 1900, kind: 'charge' },
+      { at: 2900, kind: 'skill' },
+      { at: 4700, kind: 'aftermath' },
+      { at: 5400, kind: 'settle' },
     ],
   });
 });

@@ -400,10 +400,10 @@ export function createStage(canvas, { quality = 'high' } = {}) {
     });
   }
 
-  function flyTo(i, ms = 700) {
+  function flyTo(i, ms = 700, distance = 7.4) {
     saveView();
     const target = cells[i].center.clone();
-    const pos = viewToPosition({ polar: 52 * DEG, azimuth: currentAzimuth(), distance: 7.4, target });
+    const pos = viewToPosition({ polar: 52 * DEG, azimuth: currentAzimuth(), distance, target });
     return moveCamera(pos, target, ms);
   }
 
