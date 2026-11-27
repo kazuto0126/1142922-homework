@@ -1,11 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { DUR, planMove, planUnison, planEnding } from '../js/core/director.js';
+import { DUR, planMove, planUnison, planEnding, playsUnison } from '../js/core/director.js';
 import { busGains, MUSIC_RATIO, DUCK } from '../js/core/audioPlan.js';
 import { isClick, CLICK_MAX_PX } from '../js/core/pointer.js';
 
 test('演出長度常數', () => {
-  assert.deepEqual(DUR, { normal: 4200, key: 7000, short: 900, unison: 6500, ending: 8000 });
+  assert.deepEqual(DUR, { normal: 4200, key: 7000, short: 900, unison: 6500, ending: 8000, quickEnding: 4500 });
 });
 
 test('一般落子的拍點', () => {
@@ -55,13 +55,18 @@ test('合體技與結局', () => {
   assert.equal(u.duration, 6500);
   assert.deepEqual(u.beats.filter(b => b.kind === 'unisonHero').map(b => [b.at, b.cell]), [[0, 0], [1200, 4], [2400, 8]]);
   assert.deepEqual(u.beats.find(b => b.kind === 'unisonLeader'), { at: 3800, kind: 'unisonLeader' });
+  // 平手：快點宣布（4.5 秒）
   const e = planEnding({ winner: 0, winnerFaction: null, line: null });
-  assert.deepEqual(e, { duration: 8000, beats: [{ at: 0, kind: 'ending' }] });
-  // 宿儺贏（玩家的五條悟輸）：先 3.8 秒領域對決，再接勝利演出
-  const lose = planEnding({ winner: 1, winnerFaction: 'sukuna', line: [0, 1, 2] });
-  assert.deepEqual(lose, { duration: 11800, beats: [{ at: 0, kind: 'clash' }, { at: 3800, kind: 'ending' }] });
-  // 五條悟贏：沒有對決
-  assert.equal(planEnding({ winner: 0, winnerFaction: 'gojo', line: [0, 1, 2] }).beats.length, 1);
+  assert.deepEqual(e, { duration: 4500, beats: [{ at: 0, kind: 'ending' }] });
+  // 宿儺贏（玩家的五條悟輸）：不播合體技，3.8 秒領域對決 + 4.5 秒伏魔御廚子
+  const loseResult = { winner: 1, winnerFaction: 'sukuna', line: [0, 1, 2] };
+  assert.deepEqual(planEnding(loseResult), { duration: 8300, beats: [{ at: 0, kind: 'clash' }, { at: 3800, kind: 'ending' }] });
+  assert.equal(playsUnison(loseResult), false);
+  // 五條悟贏：完整演出（合體技 + 8 秒結局），沒有對決
+  const winResult = { winner: 0, winnerFaction: 'gojo', line: [0, 1, 2] };
+  assert.deepEqual(planEnding(winResult), { duration: 8000, beats: [{ at: 0, kind: 'ending' }] });
+  assert.equal(playsUnison(winResult), true);
+  assert.equal(playsUnison({ winner: 0, winnerFaction: null, line: null }), false);
 });
 
 test('音量：音樂 = 音效 × 0.4，避讓再 × 0.35', () => {
