@@ -1,7 +1,7 @@
 // 把拍點表（core/director.js）對到實際的畫面：入場、cut-in、技能、落子、運鏡。
 // 每段演出都可以跳過（skip）或取消（cancel）。
 import { Timeline } from './core/timeline.js';
-import { planMove, planUnison, planEnding, playsUnison } from './core/director.js';
+import { planMove, planUnison, planEnding } from './core/director.js';
 import { WORLDS, FACTIONS } from './core/worlds.js';
 import { palette, ring, emit, converge, orb, flash, later } from './fx/common.js';
 import { SKILLS, makeFx } from './fx/skills/index.js';
@@ -121,7 +121,7 @@ export function createPerformer({ stage, audio, heroImages, leaderImages, getSet
     // 跳過結局相關演出：cut-in、鏡頭、還在跑的特效全部收掉
     const skipCleanup = () => { cutin.clearAll(); clearClash(); stage.snapBack(); stage.cancelFx(); };
 
-    if (playsUnison(result)) {
+    if (faction && result.line) {
       const plan = planUnison(result.line);
       const tl = new Timeline();
       tl.add(0, () => {
@@ -175,7 +175,7 @@ export function createPerformer({ stage, audio, heroImages, leaderImages, getSet
       }
     });
     if (!faction) tl.add(endAt + 650, () => cutin.showLeaderCutin({ faction: 'gojo', image: leaderImages.gojo, titleJa: FACTIONS.gojo.unisonJa, reading: FACTIONS.gojo.unisonReading, lifeMs: 700 }));
-    if (!faction) tl.add(endAt + 2200, () => cutin.showBanner('勢均力敵', 'sukuna', { lifeMs: 1500 }));
+    if (!faction) tl.add(endAt + 3200, () => cutin.showBanner('勢均力敵', 'sukuna', { lifeMs: 1500 }));
     tl.setDuration(ending.duration);
     tl.onSkip(skipCleanup);
     const r = await run(tl);

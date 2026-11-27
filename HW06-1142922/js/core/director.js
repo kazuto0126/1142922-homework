@@ -5,7 +5,7 @@
 //   ① 鏡頭推近 + cut-in（看清楚是誰出招）② 蓄力（能量聚集，讓人預期「要來了」）
 //   ③ 出招與命中（停頓、震動、閃光）④ 餘韻（餘燼、波紋慢慢散去，鏡頭緩緩退回）
 // 關鍵一手（会心の一手、決着）比一般落子更長、更大，重要程度和視覺份量要對得上。
-export const DUR = { normal: 4200, key: 7000, short: 900, unison: 6500, ending: 8000, quickEnding: 4500 };
+export const DUR = { normal: 4200, key: 7000, short: 900, unison: 6500, ending: 8000 };
 
 const NORMAL = [
   { at: 0, kind: 'entrance' },
@@ -58,19 +58,9 @@ export function planUnison(line) {
 /** 對決畫面的長度：宿儺贏（五條悟輸）時，結局前先播領域對決。 */
 export const CLASH_MS = 3800;
 
-/**
- * 結局的拍點。贏（五條悟勝）播完整的 8 秒；
- * 平手、輸（宿儺勝）要快點宣布結果（使用者要求）：平手 4.5 秒，輸是領域對決 3.8 秒 + 伏魔御廚子 4.5 秒。
- */
 export function planEnding(result) {
   if (result && result.winnerFaction === 'sukuna') {
-    return { duration: CLASH_MS + DUR.quickEnding, beats: [{ at: 0, kind: 'clash' }, { at: CLASH_MS, kind: 'ending' }] };
+    return { duration: CLASH_MS + DUR.ending, beats: [{ at: 0, kind: 'clash' }, { at: CLASH_MS, kind: 'ending' }] };
   }
-  if (!result || !result.winnerFaction) return { duration: DUR.quickEnding, beats: [{ at: 0, kind: 'ending' }] };
   return { duration: DUR.ending, beats: [{ at: 0, kind: 'ending' }] };
-}
-
-/** 連線後要不要先播三位盟友的合體技：五條悟輸的時候跳過，直接進領域對決，結果才不會拖。 */
-export function playsUnison(result) {
-  return !!(result && result.winnerFaction && result.line && result.winnerFaction !== 'sukuna');
 }
