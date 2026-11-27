@@ -1,0 +1,61 @@
+/* 日文演出字型（只含用到的字，由 tools/font-chars.mjs 產生清單）。SIL OFL 1.1，見 fonts/OFL.txt */
+@font-face {
+  font-family: 'Dela Gothic One';
+  src: url('../fonts/dela-gothic-one-subset.woff2') format('woff2');
+  font-display: swap;
+}
+
+:root {
+  --bg: #05060d;
+  --ink: #eef1ff;
+  --muted: #9aa3c7;
+  --sukuna: #ff3347;
+  --sukuna-2: #7a0012;
+  --gojo: #f2f6ff;
+  --gojo-2: #8a5cff;
+  --panel: rgba(10, 12, 26, 0.78);
+  --line: rgba(160, 175, 255, 0.25);
+  --ui-font: 'Microsoft JhengHei', 'PingFang TC', 'Noto Sans TC', system-ui, sans-serif;
+  --jp-font: 'Dela Gothic One', 'Yu Gothic', 'YuGothic', 'Meiryo', 'Hiragino Kaku Gothic ProN', sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--ui-font);
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+
+#stage {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  touch-action: none;
+  outline: none;
+}
+
+#ui {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+}
+
+
+.fatal {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  text-align: center;
+  font-size: 18px;
+  line-height: 1.6;
+}

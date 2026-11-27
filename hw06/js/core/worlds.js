@@ -1,0 +1,41 @@
+// 九個世界與兩大陣營的資料。介面文字用中文（heroZh、work），演出用日文（heroJa、moveJa、reading）。
+
+// cell：盤面位置（0 左上 … 8 右下，勝負判定用這個）；id：世界編號，對應素材檔名（hero-{id}、emblem-{id}、cell{id}.mp3、skills/cell{id}.js），不會變。
+// 排版（使用者指定）：上排 火影、死神、航海王；中排 妖精的尾巴、刀劍神域、超電磁砲；下排 英雄學院、進擊的巨人、柯南。
+export const WORLDS = [
+  { cell: 0, id: 1, heroZh: '漩渦鳴人', heroJa: 'うずまきナルト', work: '火影忍者', moveJa: '螺旋丸', reading: 'らせんがん', color: '#ff7a00', line: null },
+  { cell: 1, id: 8, heroZh: '黑崎一護', heroJa: '黒崎一護', work: '死神', moveJa: '月牙天衝', reading: 'げつがてんしょう', color: '#c0122c', line: null },
+  { cell: 2, id: 4, heroZh: '魯夫', heroJa: 'モンキー・D・ルフィ', work: '航海王', moveJa: 'ゴムゴムの猿神銃', reading: 'ばじゅらんぐがん', color: '#fff4d6', line: null },
+  { cell: 3, id: 6, heroZh: '納茲', heroJa: 'ナツ・ドラグニル', work: 'FAIRY TAIL', moveJa: '火竜の咆哮', reading: 'かりゅうのほうこう', color: '#ff3b1f', line: null },
+  { cell: 4, id: 7, heroZh: '桐谷和人', heroJa: 'キリト', work: '刀劍神域', moveJa: 'スターバースト・ストリーム', reading: 'STARBURST STREAM', color: '#9be7ff', line: null },
+  { cell: 5, id: 5, heroZh: '御坂美琴', heroJa: '御坂美琴', work: '科學超電磁砲', moveJa: '超電磁砲', reading: 'レールガン', color: '#ffb347', line: null },
+  { cell: 6, id: 0, heroZh: '綠谷出久', heroJa: '緑谷出久', work: '我的英雄學院', moveJa: 'デトロイト・スマッシュ', reading: 'DETROIT SMASH', color: '#3cd070', line: null },
+  { cell: 7, id: 2, heroZh: '艾連', heroJa: 'エレン・イェーガー', work: '進擊的巨人', moveJa: '巨人化', reading: 'きょじんか', color: '#d4a017', line: null },
+  { cell: 8, id: 3, heroZh: '江戶川柯南', heroJa: '江戸川コナン', work: '名偵探柯南', moveJa: 'キック力増強シューズ', reading: 'きっくりょくぞうきょうしゅーず', color: '#2b6cff', line: '真実はいつもひとつ！' },
+];
+
+/** 用世界編號找資料。 */
+export const WORLD_BY_ID = Object.fromEntries(WORLDS.map(w => [w.id, w]));
+
+export const FACTIONS = {
+  sukuna: {
+    id: 'sukuna',
+    nameZh: '宿儺',
+    nameJa: '両面宿儺',
+    primary: '#ff3347',
+    secondary: '#7a0012',
+    entranceJa: '解', entranceReading: 'かい',
+    unisonJa: '「開」', unisonReading: 'フーガ',
+    victoryJa: '領域展開「伏魔御廚子」', victoryReading: 'りょういきてんかい「ふくまみづし」',
+  },
+  gojo: {
+    id: 'gojo',
+    nameZh: '五條悟',
+    nameJa: '五条悟',
+    primary: '#f2f6ff',
+    secondary: '#8a5cff',
+    entranceJa: '無下限呪術', entranceReading: 'むかげんじゅじゅつ',
+    unisonJa: '虚式「茈」', unisonReading: 'きょしき「むらさき」',
+    victoryJa: '領域展開「無量空処」', victoryReading: 'りょういきてんかい「むりょうくうしょ」',
+  },
+};
