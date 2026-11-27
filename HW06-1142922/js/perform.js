@@ -53,7 +53,7 @@ export function createPerformer({ stage, audio, heroImages, leaderImages, getSet
       entrance: () => leaders.entrance(fx),
       keyCam: () => { audio.duck(true); stage.flyTo(cell, 650); },
       // 一般落子：鏡頭輕輕推近（比關鍵一手遠一點）
-      softCam: () => stage.flyTo(cell, 900, 10.5),
+      softCam: () => stage.flyTo(cell, 900, 13),
       // 蓄力：能量從四周往格子聚集、光球慢慢變大、地面一圈圈收縮的光環，最後一下閃光
       charge: () => {
         const p = fx.pos.clone().setY(fx.pos.y + 0.7);
