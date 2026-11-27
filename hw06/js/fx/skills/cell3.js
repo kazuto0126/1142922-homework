@@ -41,6 +41,14 @@ export default function (fx) {
   const b1 = new THREE.Vector3(3.6, 0.4, 3.2);
   const b2 = new THREE.Vector3(-1.5, 2.8, -3.8);
   const target = pos.clone().setY(pos.y + 0.35);
+  // 運鏡：跟著足球飛行、反彈 → 撞擊時拉高看衝擊波
+  fx.shot([
+    { at: 0.3, pos: kick.clone().add(new THREE.Vector3(1.5, 1.8, 3.5)), target: kick.clone() },
+    { at: 0.5, pos: b1.clone().add(new THREE.Vector3(2.2, 2.2, 3.5)), target: b1.clone() },
+    { at: 0.66, pos: b2.clone().add(new THREE.Vector3(2.5, 1.8, 4.5)), target: b2.clone() },
+    { at: 0.8, pos: pos.clone().add(new THREE.Vector3(1, 4.5, 5.5)), target: pos.clone() },
+    { at: 1, pos: pos.clone().add(new THREE.Vector3(0, 10, 5)), target: pos.clone() },
+  ], 1700);
 
   // ① 增強踢力：地面上電流聚集
   audio.sfx('charge', { pitch: 1.2 });

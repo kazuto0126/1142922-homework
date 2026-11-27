@@ -70,6 +70,13 @@ function originOutside() {
 
 export default function (fx) {
   const { stage, pos, audio, mul, scale } = fx;
+  // 運鏡：拉遠看拳頭從四面八方伸過來 → 最後一拳時從正上方往下壓
+  fx.shot([
+    { at: 0.2, pos: pos.clone().add(new THREE.Vector3(0, 11, 14)), target: pos.clone() },
+    { at: 0.7, pos: pos.clone().add(new THREE.Vector3(3, 10, 12)), target: pos.clone() },
+    { at: 0.88, pos: pos.clone().add(new THREE.Vector3(0, 9, 1.5)), target: pos.clone() },
+    { at: 1, pos: pos.clone().add(new THREE.Vector3(0, 6.5, 1.2)), target: pos.clone() },
+  ], 3000);
 
   // 雲霧 + 三下鼓聲
   smoke(stage, pos.clone().setY(0.4), { count: 24 * mul, color: '#f4f1ea', size: 1.8, life: 1.8, speed: 1.4, alpha: 0.45, radius: 1.2 });

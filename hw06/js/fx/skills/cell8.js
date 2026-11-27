@@ -41,6 +41,13 @@ export default function (fx) {
   horiz.scale.set(0.001, 1, 1);
   vert.scale.set(0.001, 1, 1);
   cross.add(horiz, vert);
+  // 運鏡：低角度仰拍空中的十字成形 → 劈下時鏡頭跟著往下衝 → 拉遠看裂痕
+  fx.shot([
+    { at: 0.3, pos: pos.clone().add(new THREE.Vector3(0, 0.7, 6.2)), target: center.clone() },
+    { at: 0.55, pos: pos.clone().add(new THREE.Vector3(0.6, 0.9, 5.6)), target: center.clone() },
+    { at: 0.72, pos: pos.clone().add(new THREE.Vector3(0, 2.2, 4.6)), target: pos.clone() },
+    { at: 1, pos: pos.clone().add(new THREE.Vector3(0, 6, 7)), target: pos.clone() },
+  ], 2000);
 
   // ① 橫劃（從左到右展開）
   later(stage, 120, () => {

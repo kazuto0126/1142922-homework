@@ -69,6 +69,13 @@ export default function (fx) {
   shuriken.position.copy(holdPos);
   stage.fxLayer.add(shuriken);
   const ud = shuriken.userData;
+  // 運鏡：先拍棋盤外的手與蓄力 → 跟著手裏劍飛 → 落地時拉高俯視氣旋
+  fx.shot([
+    { at: 0.25, pos: handPos.clone().add(new THREE.Vector3(4.6, 2.0, 6.0)), target: holdPos.clone() },
+    { at: 0.5, pos: handPos.clone().add(new THREE.Vector3(4.0, 2.2, 5.4)), target: holdPos.clone() },
+    { at: 0.72, pos: holdPos.clone().lerp(target, 0.5).add(new THREE.Vector3(0, 3.5, 5)), target: target.clone() },
+    { at: 1, pos: pos.clone().add(new THREE.Vector3(0, 10, 3.5)), target: pos.clone() },
+  ], 2400);
 
   // ① 手出現、掌心搓出球體 → 長出四片刃（0 ~ 1.0 秒）
   spawn(stage, hand.group, {

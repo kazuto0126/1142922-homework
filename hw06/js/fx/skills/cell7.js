@@ -77,6 +77,14 @@ function randomDir() {
 export default function (fx) {
   const { stage, pos, audio, mul, scale } = fx;
   const center = pos.clone().setY(pos.y + 0.9);
+  // 運鏡：繞著雙劍慢慢轉 → 最後一圈劍氣炸開時拉遠
+  const orbitAt = (a, r, y) => pos.clone().add(new THREE.Vector3(Math.sin(a) * r, y, Math.cos(a) * r));
+  fx.shot([
+    { at: 0.25, pos: orbitAt(0.4, 5.5, 2.2), target: center.clone() },
+    { at: 0.5, pos: orbitAt(1.4, 5.2, 2.0), target: center.clone() },
+    { at: 0.75, pos: orbitAt(2.4, 5.5, 2.4), target: center.clone() },
+    { at: 1, pos: pos.clone().add(new THREE.Vector3(0, 9, 13)), target: pos.clone() },
+  ], 2400);
   const swords = [makeSword(true), makeSword(false)];
   const home = [new THREE.Vector3(-0.9, 1.4, 0.3), new THREE.Vector3(0.9, 1.4, 0.3)];
   swords.forEach((sw, i) => {

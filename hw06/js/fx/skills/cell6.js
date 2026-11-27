@@ -13,6 +13,13 @@ export default function (fx) {
   const aim = pos.clone().setY(pos.y + 0.55);
   const dir = aim.clone().sub(mouth).normalize();
   const reach = 15; // 火柱總長（會飛出棋盤）
+  // 運鏡：從噴火那一側側拍火柱掃過棋盤 → 火海蓋滿時拉高
+  const sideV = new THREE.Vector3().crossVectors(dir, new THREE.Vector3(0, 1, 0)).normalize();
+  fx.shot([
+    { at: 0.2, pos: mouth.clone().add(new THREE.Vector3(-2.2, 1.2, 3.2)), target: aim.clone() },
+    { at: 0.5, pos: aim.clone().addScaledVector(sideV, 7).add(new THREE.Vector3(0, 2.2, 0)), target: aim.clone() },
+    { at: 1, pos: pos.clone().add(new THREE.Vector3(0, 11, 4)), target: new THREE.Vector3(0, 0, 0) },
+  ], 2200);
 
   // 吸氣：兩圈往口中收的火星
   converge(stage, mouth, { radius: 2.2, count: 110 * mul, color: '#ffcf7a', color2: fire, life: 0.32, size: 0.26 });

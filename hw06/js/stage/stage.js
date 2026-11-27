@@ -435,6 +435,36 @@ export function createStage(canvas, { quality = 'high' } = {}) {
     return moveCamera(pos, target, ms);
   }
 
+  /**
+   * 技能運鏡：鏡頭從目前的位置出發，依序經過幾個關鍵鏡頭（平滑曲線），停在最後一個。
+   * keys：[{ at: 0..1, pos, target }]（at 由小到大）；blend：0..1，一般落子用小一點（只往關鍵鏡頭靠一部分）。
+   * 結束後由演出的 restoreView 平滑回到原本的視角。
+   */
+  function cameraPath(keys, ms, { blend = 1 } = {}) {
+    saveView();
+    const p0 = camera.position.clone(), t0 = controls.target.clone();
+    const pts = [{ at: 0, pos: p0, target: t0 }, ...keys.map(k => ({
+      at: k.at,
+      pos: p0.clone().lerp(k.pos, blend),
+      target: t0.clone().lerp(k.target, blend),
+    }))];
+    // 鏡頭不要鑽到平台底下
+    for (const p of pts) p.pos.y = Math.max(0.45, p.pos.y);
+    const posCurve = new THREE.CatmullRomCurve3(pts.map(p => p.pos), false, 'centripetal');
+    const tgtCurve = new THREE.CatmullRomCurve3(pts.map(p => p.target), false, 'centripetal');
+    const n = pts.length - 1;
+    return cameraTween(ms, k => {
+      let i = 0;
+      while (i < n - 1 && k > pts[i + 1].at) i++;
+      const span = Math.max(1e-4, pts[i + 1].at - pts[i].at);
+      const u = Math.min(1, Math.max(0, (k - pts[i].at) / span));
+      const param = (i + ease(u)) / n;
+      camera.position.copy(posCurve.getPoint(param));
+      controls.target.copy(tgtCurve.getPoint(param));
+      camera.lookAt(controls.target);
+    });
+  }
+
   function orbitLine(line, ms = 4000) {
     saveView();
     const target = line.reduce((v, i) => v.add(cells[i].center), new THREE.Vector3()).multiplyScalar(1 / line.length);
@@ -784,7 +814,7 @@ export function createStage(canvas, { quality = 'high' } = {}) {
     scene, camera, renderer, controls, fxLayer,
     cellCenter: i => cells[i].center.clone(),
     pickCell, setHover, setWorldImage, placePiece, placeStandee, clearBoard, takeCell, cellsOf, resetEnvironment, cancelFx, onCancelFx,
-    onFrame, tween, flyTo, borrowLight, warmup, warmDraw, setRunning, setRenderEvery, introSweep, mirror, composer, bloom, setSkyMood,
+    onFrame, tween, flyTo, borrowLight, warmup, warmDraw, setRunning, setRenderEvery, introSweep, cameraPath, mirror, composer, bloom, setSkyMood,
     get perf() { return { level: perf.level, fps: perf.fps, pixelRatio: renderer.getPixelRatio(), mirror: mirror.enabled }; },
     /** 開發用：停掉自動更新，改成手動推進（瀏覽器暫停動畫時截圖用）。 */
     manualTick(on) { renderer.setAnimationLoop(on ? null : frame); return frame; }, orbitLine, restoreView, snapBack, resetView, setQuality, shake, impact,

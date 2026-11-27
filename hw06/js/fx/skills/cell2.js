@@ -12,6 +12,14 @@ export default function (fx) {
   const side = new THREE.Vector3(Math.sign(pos.x) || 1, 0, -1).normalize();
   const base = pos.clone().add(side.clone().multiplyScalar(5.5)).setY(-2.5);
   const strike = base.clone().setY(0.2);
+  // 運鏡：低角度仰拍巨臂竄起 → 拍下時鏡頭跟著下沉、震動 → 拉遠看蒸氣
+  const lookArm = base.clone().setY(4.5);
+  fx.shot([
+    { at: 0.25, pos: pos.clone().addScaledVector(side, -3.5).add(new THREE.Vector3(0, 0.6, 3)), target: lookArm },
+    { at: 0.45, pos: pos.clone().addScaledVector(side, -3.2).add(new THREE.Vector3(0, 0.8, 3.2)), target: lookArm },
+    { at: 0.6, pos: pos.clone().addScaledVector(side, -3).add(new THREE.Vector3(0, 2.4, 3.4)), target: pos.clone() },
+    { at: 1, pos: pos.clone().add(new THREE.Vector3(0, 7, 8)), target: pos.clone() },
+  ], 2100);
 
   // ① 落雷 + 爆炸 + 蒸氣
   bolt(stage, strike.clone().setY(14), strike, { color: '#ffe14a', width: 0.22 * scale, life: 0.45, segments: 18, jag: 0.7 });

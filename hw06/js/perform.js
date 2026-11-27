@@ -34,6 +34,7 @@ export function createPerformer({ stage, audio, heroImages, leaderImages, getSet
     const fx = makeFx({ stage, cell, faction, tier, audio, world, pal });
     const plan = planMove(event, { shortMode: getSettings().shortMode });
     const usesCam = plan.beats.some(b => b.kind === 'keyCam' || b.kind === 'softCam');
+    fx.cine = usesCam; // 有推鏡的演出才讓技能自己運鏡（結束後會由 restoreView 回位）
     const big = tier !== 'normal';
 
     let settled = false;

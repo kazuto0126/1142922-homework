@@ -32,11 +32,18 @@ export const SKILLS = WORLDS.map(w => BY_ID[w.id]);
 export function makeFx({ stage, cell, faction, tier, audio, world, pal }) {
   const pos = stage.cellCenter(cell).setY(0.15);
   const big = tier !== 'normal';
-  return {
+  const fx = {
     stage, cell, pos, faction, pal, tier, audio, world,
     color: skillColor(world.color, pal),
     big,
     mul: big ? 1.6 : 1,
     scale: big ? 1.3 : 1,
+    cine: false, // 由演出設定：這一手有運鏡時才為 true（精簡模式、登入預演都不運鏡）
   };
+  /** 技能專屬運鏡：keys 用世界座標；一般落子只往關鍵鏡頭靠 6 成、關鍵一手完整。 */
+  fx.shot = (keys, ms) => {
+    if (!fx.cine) return;
+    stage.cameraPath(keys, ms, { blend: big ? 1 : 0.6 });
+  };
+  return fx;
 }

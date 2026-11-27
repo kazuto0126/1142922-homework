@@ -39,6 +39,17 @@ export default function (fx) {
   const dir = target.clone().sub(shooter).normalize();
   const reach = 17;
   const end = shooter.clone().addScaledVector(dir, reach);
+  // 運鏡：先特寫彈硬幣的手 → 發射時鏡頭在手的後方、沿著光束方向看過去 → 拉高看電場
+  // 運鏡：先拍彈硬幣的手 → 發射時拉到光束側面的遠處，看光束橫越整個棋盤（太近會被光照得一片白）→ 拉高看電場
+  const beamSide = new THREE.Vector3().crossVectors(dir, new THREE.Vector3(0, 1, 0)).normalize();
+  const beamMid = shooter.clone().lerp(target, 0.5);
+  fx.shot([
+    { at: 0.28, pos: shooter.clone().add(new THREE.Vector3(2.8, 1.6, 4.2)), target: shooter.clone().add(new THREE.Vector3(0, 0.8, 0)) },
+    { at: 0.42, pos: shooter.clone().add(new THREE.Vector3(2.6, 1.8, 4.0)), target: shooter.clone().add(new THREE.Vector3(0, 0.5, 0)) },
+    { at: 0.52, pos: beamMid.clone().addScaledVector(beamSide, 11).add(new THREE.Vector3(0, 4.5, 0)), target: beamMid.clone() },
+    { at: 0.72, pos: beamMid.clone().addScaledVector(beamSide, 10).add(new THREE.Vector3(0, 5, 0)), target: beamMid.clone() },
+    { at: 1, pos: pos.clone().add(new THREE.Vector3(0, 9, 8)), target: pos.clone() },
+], 2000);
 
   // 電光手：面向目標
   const hand = makeElectricHand(stage);

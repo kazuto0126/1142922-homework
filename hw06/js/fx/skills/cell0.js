@@ -21,6 +21,13 @@ export default function (fx) {
   const origin = pos.clone().add(new THREE.Vector3(6.5, 2.4, 2.2));
   const target = pos.clone().setY(pos.y + 0.6);
   const dir = target.clone().sub(origin).normalize();
+  // 運鏡：從能量拳背後越過拳頭看向棋盤 → 出拳時鏡頭往前衝 → 拉高看拳風
+  fx.shot([
+    { at: 0.35, pos: origin.clone().addScaledVector(dir, -4.2).add(new THREE.Vector3(0, 1.3, 0)), target: target.clone() },
+    { at: 0.52, pos: origin.clone().addScaledVector(dir, -4.6).add(new THREE.Vector3(0, 1.5, 0)), target: target.clone() },
+    { at: 0.66, pos: origin.clone().addScaledVector(dir, 1.5).add(new THREE.Vector3(0, 1.4, 0)), target: target.clone() },
+    { at: 1, pos: pos.clone().add(new THREE.Vector3(0, 8, 8)), target: pos.clone() },
+  ], 1900);
 
   const fist = makeFist(greenFistMaterial(), { arm: 0 }); // 只有浮空的能量拳，不拖手臂
   fist.traverse(o => { if (o.geometry) o.geometry.userData.shared = false; });
