@@ -37,6 +37,8 @@ export function createStage(canvas, { quality = 'high' } = {}) {
   renderer.toneMappingExposure = 1.0;
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.shadowMap.autoUpdate = false; // 手動控制更新頻率（見每幀的繪製）
+  renderer.shadowMap.needsUpdate = true;
 
   const scene = new THREE.Scene();
   scene.background = new THREE.Color('#05060d');
@@ -179,7 +181,8 @@ export function createStage(canvas, { quality = 'high' } = {}) {
   const perf = { level: 0, sum: 0, n: 0, since: performance.now(), goodWindows: 0, fps: 60 };
   function applyPerf() {
     const [scaleRes, mirrorRes] = PERF_LEVELS[perf.level];
-    const maxPR = quality === 'high' ? Math.min(window.devicePixelRatio || 1, 2) : 1;
+    // 解析度倍率上限 1.5：高解析度筆電原本用 2 倍（像素量是 4 倍），加上抗鋸齒、泛光、鏡面反射負擔太重；1.5 倍肉眼幾乎看不出差別
+    const maxPR = quality === 'high' ? Math.min(window.devicePixelRatio || 1, 1.5) : 1;
     renderer.setPixelRatio(Math.max(0.5, maxPR * (quality === 'high' ? scaleRes : 1)));
     mirror.enabled = quality === 'high' && mirrorRes > 0;
     mirror.scale = mirrorRes || 0.35;
@@ -189,11 +192,11 @@ export function createStage(canvas, { quality = 'high' } = {}) {
     if (quality !== 'high' || document.hidden || rawDt > 0.25) return; // 背景分頁、切換時的長間隔不算
     perf.sum += rawDt; perf.n++;
     const now = performance.now();
-    if (now - perf.since < 1500 || perf.n < 20) return;
+    if (now - perf.since < 1000 || perf.n < 15) return; // 每 1 秒檢查一次，掉幀時反應更快
     const avg = perf.sum / perf.n;
     perf.fps = Math.round(1 / avg);
     perf.sum = 0; perf.n = 0; perf.since = now;
-    if (avg > 1 / 42 && perf.level < PERF_LEVELS.length - 1) { perf.level++; perf.goodWindows = 0; applyPerf(); }
+    if (avg > 1 / 48 && perf.level < PERF_LEVELS.length - 1) { perf.level++; perf.goodWindows = 0; applyPerf(); }
     else if (avg < 1 / 75 && perf.level > 0 && !camTween) {
       if (++perf.goodWindows >= 4) { perf.level--; perf.goodWindows = 0; applyPerf(); }
     } else perf.goodWindows = 0;
@@ -318,8 +321,10 @@ export function createStage(canvas, { quality = 'high' } = {}) {
     // 被全螢幕動畫蓋住時可以每 N 幀才畫一次（特效照常更新），把時間讓給前面的動畫
     frameNo++;
     if (frameNo % renderEvery === 0) {
+      // 陰影和鏡面反射每 2 幀更新一次（變化很小、肉眼看不出慢一幀），省下兩次額外的整個場景繪製
+      renderer.shadowMap.needsUpdate = frameNo % 2 === 0;
       if (useComposer) {
-        mirror.render(scene, camera);
+        if (frameNo % 2 === 0) mirror.render(scene, camera);
         composer.render();
       } else renderer.render(scene, camera);
     }
@@ -853,6 +858,7 @@ function backOut(k) {
 
 function dispose(obj) {
   obj.traverse(o => {
+    if (o.isInstancedMesh && o.dispose) o.dispose();
     if (o.geometry && !o.geometry.userData.shared) o.geometry.dispose(); // 共用幾何不丟
     if (o.material) {
       for (const m of [].concat(o.material)) {

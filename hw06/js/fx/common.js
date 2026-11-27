@@ -86,13 +86,19 @@ function particleSystem(stage) {
   // 特效全部取消時（重開一局、回標題、跳過結局）：所有粒子立刻消失
   stage.onCancelFx(() => {
     for (let i = 0; i < live; i++) { life[i] = 0; rgba[i * 4 + 3] = 0; size[i] = 0; }
+    upload(live);
     live = 0;
-    upload();
   });
-  const upload = () => {
-    geo.attributes.position.needsUpdate = true;
-    geo.attributes.rgba.needsUpdate = true;
-    geo.attributes.size.needsUpdate = true;
+  // 只上傳有用到的那一段（前 count 顆），不是每幀整個 4000 顆的緩衝區
+  const upload = (count = live) => {
+    const n = Math.max(1, count);
+    for (const [name, item] of [['position', 3], ['rgba', 4], ['size', 1]]) {
+      const a = geo.attributes[name];
+      a.clearUpdateRanges();
+      a.addUpdateRange(0, n * item);
+      a.needsUpdate = true;
+    }
+    geo.setDrawRange(0, n);
   };
   let wasActive = false;
 
@@ -216,6 +222,7 @@ export function spawn(stage, obj, { life = 0.6, delay = 0, update = null } = {})
         off();
         stage.fxLayer.remove(obj);
         obj.traverse(o => {
+          if (o.isInstancedMesh) o.dispose(); // 釋放 instance 的緩衝區
           if (o.geometry && !o.geometry.userData.shared) o.geometry.dispose(); // 共用的幾何（閃電、劍氣）不丟，下次直接用
           if (o.material) [].concat(o.material).forEach(m => { if (!m.userData.shared) m.dispose(); }); // 共用材質不丟
         });
@@ -341,32 +348,35 @@ export function bolt(stage, from, to, { color = '#ffffff', width = 0.06, life = 
   const g = new THREE.Group();
   const mat = glowMat(color, 1);
   const core = glowMat('#ffffff', 1);
-  const segs = [];
-  for (let i = 0; i < segments; i++) {
-    const m = new THREE.Mesh(BOLT_GEO, mat);
-    const c = new THREE.Mesh(BOLT_CORE_GEO, core);
-    m.add(c);
-    g.add(m);
-    segs.push(m);
-  }
-  const pts = [];
+  // 整道閃電只用兩個 InstancedMesh（外光、白芯），每一節是一個 instance：
+  // 原本每一節兩個 Mesh，閃電一多就是幾百次繪製，現在一道閃電只有 2 次
+  const outer = new THREE.InstancedMesh(BOLT_GEO, mat, segments);
+  const inner = new THREE.InstancedMesh(BOLT_CORE_GEO, core, segments);
+  outer.frustumCulled = inner.frustumCulled = false;
+  outer.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+  inner.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+  g.add(outer, inner);
+  const pts = Array.from({ length: segments + 1 }, () => new THREE.Vector3());
   const up = new THREE.Vector3(0, 1, 0);
-  const dirv = new THREE.Vector3();
+  const dirv = new THREE.Vector3(), mid = new THREE.Vector3(), sc = new THREE.Vector3();
+  const q = new THREE.Quaternion(), mtx = new THREE.Matrix4();
   function rejitter() {
-    pts.length = 0;
     for (let i = 0; i <= segments; i++) {
-      const p = from.clone().lerp(to, i / segments);
-      if (i > 0 && i < segments) p.add(new THREE.Vector3(rand(-jag, jag), rand(-jag, jag), rand(-jag, jag)));
-      pts.push(p);
+      pts[i].copy(from).lerp(to, i / segments);
+      if (i > 0 && i < segments) pts[i].x += rand(-jag, jag), pts[i].y += rand(-jag, jag), pts[i].z += rand(-jag, jag);
     }
-    segs.forEach((m, i) => {
+    for (let i = 0; i < segments; i++) {
       const a = pts[i], b = pts[i + 1];
-      m.position.copy(a).add(b).multiplyScalar(0.5);
+      mid.copy(a).add(b).multiplyScalar(0.5);
       dirv.copy(b).sub(a);
       const len = dirv.length();
-      m.quaternion.setFromUnitVectors(up, dirv.normalize());
-      m.scale.set(width, len, width);
-    });
+      q.setFromUnitVectors(up, dirv.normalize());
+      mtx.compose(mid, q, sc.set(width, len, width));
+      outer.setMatrixAt(i, mtx);
+      inner.setMatrixAt(i, mtx);
+    }
+    outer.instanceMatrix.needsUpdate = true;
+    inner.instanceMatrix.needsUpdate = true;
   }
   rejitter();
   let acc = 0;

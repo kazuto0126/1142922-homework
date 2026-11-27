@@ -25,6 +25,7 @@ export function fxWarmupObjects(stage) {
     new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: '#000000', transparent: true, side: THREE.DoubleSide, depthWrite: false })),
     new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: '#ffffff', transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false })),
     new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false })),
+    new THREE.InstancedMesh(geo, glowMat('#ffffff'), 2), // 閃電用的 instanced 發光材質
     makeFist(std('#ffffff', { sheen: 1, clearcoat: 0.3, fade: true })),
     makeFist(),
     makeTitanArm(),
