@@ -15,6 +15,7 @@ export function createAudio(initialSettings) {
   let musicBus = null;
   let music = null;
   let ducked = false;
+  let boosted = false;
 
   function build() {
     const AC = window.AudioContext || window.webkitAudioContext;
@@ -29,7 +30,8 @@ export function createAudio(initialSettings) {
     sfxBus.connect(comp);
     musicBus.connect(comp);
     music = createMusicManager({
-      ctx, dest: musicBus, synth, paths: WORLDS.map(w => MUSIC.cell[w.id]), // 依盤面位置排列：playCell(盤面位置) available: isAvailable,
+      ctx, dest: musicBus, synth, paths: WORLDS.map(w => MUSIC.cell[w.id]), // 依盤面位置排列：playCell(盤面位置)
+      available: isAvailable,
       fetchBuffer: async path => {
         const r = await fetch(path);
         if (!r.ok) throw new Error(`${path}: ${r.status}`);
@@ -39,14 +41,14 @@ export function createAudio(initialSettings) {
     applyGains(true);
   }
 
-  function applyGains(immediate = false) {
+  function applyGains(immediate = false, slow = false) {
     if (!ctx) return;
-    const g = busGains({ ...settings, ducked });
+    const g = busGains({ ...settings, ducked, boosted });
     const t = ctx.currentTime;
     for (const [bus, v] of [[sfxBus, g.sfx], [musicBus, g.music]]) {
       bus.gain.cancelScheduledValues(t);
       if (immediate) bus.gain.setValueAtTime(v, t);
-      else bus.gain.setTargetAtTime(v, t, 0.04); // 約 120 ms 平滑過渡
+      else bus.gain.setTargetAtTime(v, t, slow ? 0.5 : 0.04); // 平常約 120 ms 平滑過渡；音樂從大聲收回來時慢慢降
     }
   }
 
@@ -62,6 +64,12 @@ export function createAudio(initialSettings) {
       }
     },
     setSettings(s) { settings = { ...s }; applyGains(); },
+    /** 領域對決時把音樂放大（這段沒有音效）；結束後慢慢收回正常音量。 */
+    boostMusic(on) {
+      if (boosted === !!on) return;
+      boosted = !!on;
+      applyGains(false, !on);
+    },
     duck(on) { ducked = !!on; applyGains(); },
     sfx(name, opts) { if (ready()) synth.playSfx(ctx, sfxBus, name, opts); },
     /** 播一段音檔（例如語音）到音效匯流排；沒有這個檔案就什麼都不做。 */

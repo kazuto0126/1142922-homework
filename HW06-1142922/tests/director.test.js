@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { DUR, planMove, planUnison, planEnding } from '../js/core/director.js';
-import { busGains, MUSIC_RATIO, DUCK } from '../js/core/audioPlan.js';
+import { busGains, MUSIC_RATIO, DUCK, BOOST_RATIO } from '../js/core/audioPlan.js';
 import { isClick, CLICK_MAX_PX } from '../js/core/pointer.js';
 
 test('演出長度常數', () => {
@@ -55,8 +55,9 @@ test('合體技與結局', () => {
   assert.equal(u.duration, 6500);
   assert.deepEqual(u.beats.filter(b => b.kind === 'unisonHero').map(b => [b.at, b.cell]), [[0, 0], [1200, 4], [2400, 8]]);
   assert.deepEqual(u.beats.find(b => b.kind === 'unisonLeader'), { at: 3800, kind: 'unisonLeader' });
+  // 平手也先播領域對決
   const e = planEnding({ winner: 0, winnerFaction: null, line: null });
-  assert.deepEqual(e, { duration: 8000, beats: [{ at: 0, kind: 'ending' }] });
+  assert.deepEqual(e, { duration: 11800, beats: [{ at: 0, kind: 'clash' }, { at: 3800, kind: 'ending' }] });
   // 宿儺贏（玩家的五條悟輸）：先 3.8 秒領域對決，再接勝利演出
   const lose = planEnding({ winner: 1, winnerFaction: 'sukuna', line: [0, 1, 2] });
   assert.deepEqual(lose, { duration: 11800, beats: [{ at: 0, kind: 'clash' }, { at: 3800, kind: 'ending' }] });
@@ -74,6 +75,12 @@ test('音量：音樂 = 音效 × 0.4，避讓再 × 0.35', () => {
   assert.equal(d.sfx, 1);
   assert.equal(busGains({ musicOn: false, sfxOn: true, volume: 1, ducked: false }).music, 0);
   assert.equal(busGains({ musicOn: true, sfxOn: false, volume: 1, ducked: false }).sfx, 0);
+});
+
+test('領域對決時音樂放大（這段沒有音效），音樂關掉時仍然是 0', () => {
+  assert.equal(busGains({ musicOn: true, sfxOn: true, volume: 1, ducked: false, boosted: true }).music, BOOST_RATIO);
+  assert.ok(BOOST_RATIO > MUSIC_RATIO);
+  assert.equal(busGains({ musicOn: false, sfxOn: true, volume: 1, ducked: false, boosted: true }).music, 0);
 });
 
 test('音樂關掉音效時，音樂仍然以 0.4 為上限', () => {

@@ -12,7 +12,11 @@ export function clearClash() {
 }
 
 /** 播放領域對決。sfx(name, opts)：播放音效的函式。回傳結束時 resolve 的 Promise。 */
-export function playDomainClash({ sfx = () => {} } = {}) {
+/**
+ * outcome：'lose'（五條悟這邊被打碎、紅色吞掉畫面）或 'draw'（兩邊僵持、都出現裂痕，交界爆出白光把兩邊震開，「勢均力敵」）。
+ */
+export function playDomainClash({ sfx = () => {}, outcome = 'lose' } = {}) {
+  const draw = outcome === 'draw';
   clearClash();
   return new Promise(resolve => {
     const root = document.createElement('div');
@@ -21,7 +25,8 @@ export function playDomainClash({ sfx = () => {} } = {}) {
       <canvas></canvas>
       <div class="clash-name left"><small>領域展開</small><b>無量空処</b></div>
       <div class="clash-name right"><small>領域展開</small><b>伏魔御廚子</b></div>
-      <div class="clash-final"><small>領域展開</small><b>伏魔御廚子</b></div>`;
+      ${draw ? '<div class="clash-final"><small>DRAW</small><b>勢均力敵</b></div>' : '<div class="clash-final"><small>領域展開</small><b>伏魔御廚子</b></div>'}`;
+    if (draw) root.classList.add('draw');
     document.body.appendChild(root);
     const canvas = root.querySelector('canvas');
     const g = canvas.getContext('2d');
@@ -41,6 +46,7 @@ export function playDomainClash({ sfx = () => {} } = {}) {
     const bones = Array.from({ length: 40 }, () => ({ x: Math.random(), y: rnd(0.55, 1.05), s: rnd(4, 14), rot: rnd(0, 6), vr: rnd(-2, 2), vy: rnd(-0.05, -0.15) }));
     const sparks = [];
     let cracks = [];
+    const rightCracks = [];
     let shards = null;
 
     const t0 = performance.now();
@@ -145,7 +151,8 @@ export function playDomainClash({ sfx = () => {} } = {}) {
       // 斜線位置：滑進來 → 中間拉鋸 → 紅色往左推
       let seamX;
       const appear = Math.min(1, t / T.in);
-      if (t < T.push) seamX = W * (0.5 + Math.sin(t * 9) * 0.012 * appear + Math.sin(t * 23) * 0.006);
+      if (draw) seamX = W * (0.5 + Math.sin(t * 9) * 0.012 * appear + Math.sin(t * 23) * 0.006 + (t > T.push ? Math.sin(t * 37) * 0.01 : 0));
+      else if (t < T.push) seamX = W * (0.5 + Math.sin(t * 9) * 0.012 * appear + Math.sin(t * 23) * 0.006);
       else seamX = W * (0.5 - Math.pow(Math.min(1, (t - T.push) / (T.shatter - T.push)), 2) * 0.12);
       // 震動
       const shake = (t < T.shatter ? 6 + 10 * Math.max(0, (t - T.push) / (T.shatter - T.push)) : Math.max(0, 22 * (1 - (t - T.shatter) / 0.5))) * dpr;
@@ -157,9 +164,29 @@ export function playDomainClash({ sfx = () => {} } = {}) {
 
       // 右半邊（宿儺）：整個畫面先畫紅色，左邊之後蓋上去
       const rightIn = (1 - appear) * W * 0.5;
+      // 平手：交界爆開時兩邊往外震開
+      const burst = draw && t > T.shatter ? 1 - Math.pow(1 - Math.min(1, (t - T.shatter) / 0.45), 3) : 0;
+      const apart = burst * W * 0.06;
       g.save();
-      g.translate(rightIn, 0);
+      g.translate(rightIn + apart, 0);
       drawRight(g, t);
+      // 平手時宿儺這邊也會裂
+      if (draw && rightCracks.length) {
+        const grow = Math.min(1, (t - T.crack) / (T.shatter - T.crack));
+        g.lineCap = 'round';
+        g.strokeStyle = 'rgba(255,255,255,0.95)';
+        g.lineWidth = 2.5 * dpr;
+        g.shadowColor = '#8fb4ff';
+        g.shadowBlur = 12 * dpr;
+        for (const c of rightCracks) {
+          const n = Math.max(1, Math.floor(c.length * grow));
+          g.beginPath();
+          g.moveTo(c[0][0], c[0][1]);
+          for (let k = 1; k < n; k++) g.lineTo(c[k][0], c[k][1]);
+          g.stroke();
+        }
+        g.shadowBlur = 0;
+      }
       g.restore();
 
       // 左半邊（五條悟）畫到離屏畫布，再用斜線裁切
@@ -178,6 +205,14 @@ export function playDomainClash({ sfx = () => {} } = {}) {
               const dir = Math.PI + (Math.random() - 0.5) * 1.2;
               for (let k = 0; k < 6; k++) { x += Math.cos(dir + (Math.random() - 0.5) * 0.9) * W * 0.06; y += Math.sin(dir + (Math.random() - 0.5) * 0.9) * W * 0.06; pts.push([x, y]); }
               cracks.push(pts);
+              if (draw) {
+                // 往右邊長的裂痕（宿儺那側）
+                const rp = [[sx, sy]];
+                let rx = sx, ry = sy;
+                const rdir = (Math.random() - 0.5) * 1.2;
+                for (let k = 0; k < 6; k++) { rx += Math.cos(rdir + (Math.random() - 0.5) * 0.9) * W * 0.06; ry += Math.sin(rdir + (Math.random() - 0.5) * 0.9) * W * 0.06; rp.push([rx, ry]); }
+                rightCracks.push(rp);
+              }
             }
           });
           const grow = Math.min(1, (t - T.crack) / (T.shatter - T.crack));
@@ -196,7 +231,7 @@ export function playDomainClash({ sfx = () => {} } = {}) {
           lg.shadowBlur = 0;
         }
         g.save();
-        g.translate(-(1 - appear) * W * 0.5, 0);
+        g.translate(-(1 - appear) * W * 0.5 - apart, 0);
         g.beginPath();
         g.moveTo(0, 0);
         g.lineTo(seamAt(seamX, 0), 0);
@@ -229,7 +264,20 @@ export function playDomainClash({ sfx = () => {} } = {}) {
       }
 
       // 碎裂：把左半邊切成三角形碎片往外飛
-      if (t > T.shatter) {
+      // 平手：交界爆出白光（不碎裂）
+      if (draw && t > T.shatter) {
+        const k = Math.min(1, (t - T.shatter) / 0.9);
+        const cx = seamAt(seamX, H / 2), r = Math.hypot(W, H) * (0.15 + k * 0.7);
+        const grd = g.createRadialGradient(cx, H / 2, 0, cx, H / 2, r);
+        grd.addColorStop(0, `rgba(255,255,255,${0.95 * (1 - k * 0.6)})`);
+        grd.addColorStop(0.35, `rgba(200,170,255,${0.55 * (1 - k)})`);
+        grd.addColorStop(1, 'rgba(255,255,255,0)');
+        g.globalCompositeOperation = 'lighter';
+        g.fillStyle = grd;
+        g.fillRect(-50, -50, W + 100, H + 100);
+        g.globalCompositeOperation = 'source-over';
+      }
+      if (!draw && t > T.shatter) {
         once('shatter', () => {
           sfx('explode', { pitch: 0.7 });
           sfx('impact', { pitch: 0.4 });
@@ -297,7 +345,7 @@ export function playDomainClash({ sfx = () => {} } = {}) {
       // 紅光吞掉整個畫面
       if (t > T.flood) {
         const k = Math.min(1, (t - T.flood) / (T.end - T.flood));
-        g.fillStyle = `rgba(150,0,14,${k * 0.85})`;
+        g.fillStyle = draw ? `rgba(60,30,110,${k * 0.8})` : `rgba(150,0,14,${k * 0.85})`;
         g.fillRect(-50, -50, W + 100, H + 100);
       }
       g.restore();

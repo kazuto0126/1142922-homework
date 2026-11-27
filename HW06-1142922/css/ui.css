@@ -546,3 +546,10 @@ h2 { margin: 0; font-size: clamp(24px, 5vw, 36px); letter-spacing: 0.15em; }
 .clash-final small { font-size: clamp(18px, 3vw, 40px); letter-spacing: 0.6em; color: #ffd0d4; -webkit-text-stroke: 0; }
 .clash-final b { font-weight: 400; font-size: clamp(48px, 10vw, 160px); white-space: nowrap; }
 .clash.final .clash-final { opacity: 1; animation: slam 0.42s cubic-bezier(.2, 1.6, .4, 1) both; }
+
+/* 平手的領域對決：兩邊的名字都留著，最後一起退場；中間是紫白色的「勢均力敵」 */
+.clash.draw.broken .clash-name.left { opacity: 1; transform: translate(-30px, -50%) skewX(-6deg); }
+.clash.draw.broken .clash-name.right { transform: translate(30px, -50%) skewX(-6deg); }
+.clash.draw.final .clash-name.left, .clash.draw.final .clash-name.right { opacity: 0; }
+.clash.draw .clash-final { -webkit-text-stroke: 2px #1a0830; text-shadow: 0 0 24px #b07cff, 0 0 60px #6f8cff, 0 0 30px #ff3347, 6px 6px 0 #000; }
+.clash.draw .clash-final small { color: #e6dcff; letter-spacing: 0.8em; }

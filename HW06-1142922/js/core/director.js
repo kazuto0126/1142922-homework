@@ -59,7 +59,8 @@ export function planUnison(line) {
 export const CLASH_MS = 3800;
 
 export function planEnding(result) {
-  if (result && result.winnerFaction === 'sukuna') {
+  // 五條悟輸、或是平手，都先播領域對決
+  if (result && (result.winnerFaction === 'sukuna' || !result.winnerFaction)) {
     return { duration: CLASH_MS + DUR.ending, beats: [{ at: 0, kind: 'clash' }, { at: CLASH_MS, kind: 'ending' }] };
   }
   return { duration: DUR.ending, beats: [{ at: 0, kind: 'ending' }] };

@@ -131,7 +131,7 @@ export function createPerformer({ stage, audio, heroImages, leaderImages, getSet
     const myEpoch = epoch;
     const faction = result.winnerFaction;
     // 跳過結局相關演出：cut-in、鏡頭、還在跑的特效全部收掉
-    const skipCleanup = () => { cutin.clearAll(); clearClash(); stage.snapBack(); stage.cancelFx(); };
+    const skipCleanup = () => { cutin.clearAll(); clearClash(); audio.boostMusic(false); stage.snapBack(); stage.cancelFx(); };
 
     if (faction && result.line) {
       const plan = planUnison(result.line);
@@ -175,10 +175,17 @@ export function createPerformer({ stage, audio, heroImages, leaderImages, getSet
     const endAt = ending.beats.find(b => b.kind === 'ending').at;
     // 五條悟輸的時候：先播領域對決（無量空処 vs 伏魔御廚子，五條悟這邊被打碎）
     if (ending.beats.some(b => b.kind === 'clash')) {
-      tl.add(0, () => { audio.duck(false); playDomainClash({ sfx: (name, opts) => audio.sfx(name, opts) }); });
+      tl.add(0, () => {
+        audio.duck(false);
+        // 對決時不放音效；隨機挑一首歌、而且放大聲
+        audio.music.playCell(Math.floor(Math.random() * WORLDS.length));
+        audio.boostMusic(true);
+        playDomainClash({ outcome: faction === 'sukuna' ? 'lose' : 'draw' });
+      });
     }
     tl.add(endAt, () => {
       audio.duck(false);
+      audio.boostMusic(false);
       if (faction) {
         const f = FACTIONS[faction];
         cutin.showLeaderCutin({ faction, image: leaderImages[faction], titleJa: f.victoryJa, reading: f.victoryReading, lifeMs: 1300 });
@@ -209,6 +216,7 @@ export function createPerformer({ stage, audio, heroImages, leaderImages, getSet
       if (current) current.cancel();
       cutin.clearAll();
       clearClash();
+      audio.boostMusic(false);
       stage.snapBack();
       audio.duck(false);
     },
