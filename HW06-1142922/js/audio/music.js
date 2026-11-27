@@ -51,8 +51,11 @@ export function createMusicManager({ ctx, dest, synth, paths, fetchBuffer, avail
     };
   }
 
+  let playingCell = null; // 目前正在播哪一格的歌（同一首就不重頭播）
+
   function stopCurrent(fadeMs = XFADE_MS) {
     if (current) { current.stop(fadeMs); current = null; }
+    playingCell = null;
   }
 
   function startBuffer(buffer) {
@@ -80,6 +83,7 @@ export function createMusicManager({ ctx, dest, synth, paths, fetchBuffer, avail
     if (token !== seq) return; // 已經換成別首了
     stopCurrent();
     current = buffer ? startBuffer(buffer) : startSynth(g => synth.playFallbackBed(ctx, g, cell));
+    playingCell = cell;
   }
 
   function clearTitle() {
@@ -89,6 +93,7 @@ export function createMusicManager({ ctx, dest, synth, paths, fetchBuffer, avail
   return {
     playCell(cell) {
       clearTitle();
+      if (cell === playingCell && current) { ++seq; return Promise.resolve(); } // 已經在播這首，不要重頭開始
       return playCellInner(cell, ++seq);
     },
 

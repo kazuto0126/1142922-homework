@@ -114,3 +114,15 @@ test('結局曲：victory / defeat / draw 交給合成器', async () => {
   await mm.playEnding('defeat');
   assert.equal(synth.endings[0].stopped, true);
 });
+
+test('同一首已經在播：再叫一次不會重頭開始；換別首或播完結局曲後才會重新開始', async () => {
+  const ctx = fakeCtx(), synth = fakeSynth();
+  const mm = createMusicManager({ ctx, dest: {}, synth, paths, fetchBuffer: p => Promise.resolve({ p }) });
+  await mm.playCell(4);
+  await mm.playCell(4);
+  assert.equal(ctx.sources.length, 1);
+  assert.equal(ctx.sources[0].stopped, false);
+  await mm.playEnding('defeat');
+  await mm.playCell(4);
+  assert.equal(ctx.sources.length, 2);
+});
