@@ -1,44 +1,11 @@
 // 棋盤上的「看得見的演算法」：
-//  - 電腦思考：每個空格浮出它算出來的結果（勝 / 和 / 敗），一道掃描光掃過所有空格，最後鎖定它選的那一格。
+//  - 電腦思考：一道掃描光掃過所有空格，最後鎖定它選的那一格（原本每格浮出的勝／和／敗字樣，使用者覺得不好看，拿掉了）。
 //  - 危機警示：只差一格就連線的格子會脈動發光、閃出裂痕（用威脅那一方的陣營色），並有心跳聲。
 import * as THREE from 'three';
 import { FACTIONS } from '../core/worlds.js';
 import { makeBeamPillar } from './scenery.js';
 
-const OUTCOME = {
-  win: { big: '勝', small: 'WIN', color: '#3cff8a' },
-  draw: { big: '和', small: 'DRAW', color: '#c9d2ea' },
-  lose: { big: '敗', small: 'LOSE', color: '#ff4a5a' },
-};
 const TILE_TOP = 0.125;
-
-/** 浮在格子上的全息標籤（canvas 畫字）。 */
-function labelSprite(outcome) {
-  const o = OUTCOME[outcome];
-  const c = document.createElement('canvas');
-  c.width = 256; c.height = 160;
-  const g = c.getContext('2d');
-  g.fillStyle = 'rgba(6,10,24,0.78)';
-  g.strokeStyle = o.color;
-  g.lineWidth = 5;
-  g.beginPath();
-  g.roundRect(8, 8, 240, 144, 22);
-  g.fill();
-  g.stroke();
-  g.fillStyle = o.color;
-  g.textAlign = 'center';
-  g.font = "900 86px 'Microsoft JhengHei', 'PingFang TC', 'Noto Sans TC', sans-serif";
-  g.fillText(o.big, 128, 96);
-  g.font = "700 26px Consolas, 'Courier New', monospace";
-  g.fillText(o.small, 128, 136);
-  const tex = new THREE.CanvasTexture(c);
-  tex.colorSpace = THREE.SRGBColorSpace;
-  const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false, depthWrite: false, toneMapped: false, opacity: 0 });
-  const s = new THREE.Sprite(mat);
-  s.scale.set(1.15, 0.72, 1);
-  s.renderOrder = 20;
-  return s;
-}
 
 /** 鎖定框：旋轉的虛線圈 + 四個角括號。 */
 function reticle(color) {
@@ -105,7 +72,6 @@ export function createBoardHud(stage, { cellSize = 2.4 } = {}) {
   const uTime = { value: 0 };
   stage.onFrame(dt => { uTime.value += dt; });
   let token = 0;
-  let labels = [];
   let scan = null;
   let lock = null;
   const threatMeshes = new Map(); // cell → mesh
@@ -118,14 +84,12 @@ export function createBoardHud(stage, { cellSize = 2.4 } = {}) {
 
   function clearInsight() {
     token++;
-    for (const l of labels) { group.remove(l); disposeObj(l); }
-    labels = [];
     if (scan) { group.remove(scan); disposeObj(scan); scan = null; }
     if (lock) { group.remove(lock); disposeObj(lock); lock = null; }
   }
 
   /**
-   * 電腦思考的演出：結果標籤一格一格浮出 → 掃描光掃過所有空格 → 鎖定 choice。
+   * 電腦思考的演出：掃描光掃過所有空格 → 鎖定 choice。insight 只用來決定要掃哪些格子。
    * 回傳 Promise（被 clearInsight 中斷時也會結束）。sfx：播放音效的函式。
    */
   async function think(insight, choice, { sfx = () => {}, faction = 'sukuna' } = {}) {
@@ -133,23 +97,6 @@ export function createBoardHud(stage, { cellSize = 2.4 } = {}) {
     const my = token;
     const alive = () => my === token;
     const color = FACTIONS[faction].primary;
-    // ① 標籤一格一格浮出
-    for (const { cell, outcome } of insight) {
-      if (!alive()) return;
-      const s = labelSprite(outcome);
-      const c = stage.cellCenter(cell);
-      s.position.set(c.x, TILE_TOP + 0.9, c.z);
-      group.add(s);
-      labels.push(s);
-      stage.tween(260, k => {
-        s.material.opacity = k;
-        s.position.y = TILE_TOP + 0.6 + 0.3 * (1 - Math.pow(1 - k, 3));
-      });
-      sfx('hover', { pitch: outcome === 'win' ? 1.5 : outcome === 'lose' ? 0.8 : 1.1, gain: 0.6 });
-      await wait(110);
-    }
-    await wait(250);
-    if (!alive()) return;
     // ② 掃描光依序掃過所有空格
     scan = makeBeamPillar(uTime, color);
     group.add(scan);
@@ -164,12 +111,6 @@ export function createBoardHud(stage, { cellSize = 2.4 } = {}) {
     if (!alive()) return;
     const target = stage.cellCenter(choice);
     scan.position.set(target.x, TILE_TOP + 3.5, target.z);
-    // 其他格子的標籤淡掉，只留選中的那格
-    for (let i = 0; i < labels.length; i++) {
-      const l = labels[i];
-      if (insight[i].cell === choice) continue;
-      stage.tween(300, k => { l.material.opacity = 1 - k * 0.8; });
-    }
     // ③ 鎖定框從大縮到格子大小
     lock = reticle(color);
     lock.position.set(target.x, TILE_TOP + 0.05, target.z);
