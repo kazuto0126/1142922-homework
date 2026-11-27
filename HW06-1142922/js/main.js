@@ -1,7 +1,9 @@
 // 進入點：建立舞台、載入素材、畫面流程與對局流程。
-import { createStage, supportsWebGL } from './stage/stage.js';
+import { createStage, supportsWebGL, CELL } from './stage/stage.js';
+import { createBoardHud } from './stage/boardHud.js';
+import { cpuInsight, threats } from './core/insight.js';
 import { createMatch, outcomeFor } from './core/match.js';
-import { EMPTY, X } from './core/rules.js';
+import { EMPTY, X, O } from './core/rules.js';
 import { WORLDS, FACTIONS } from './core/worlds.js';
 import { createTapTracker } from './core/pointer.js';
 import { createStats } from './core/stats.js';
@@ -42,6 +44,8 @@ async function boot() {
   const stats = createStats(storage);
   const stage = createStage(canvas, { quality: settings.quality });
   const audio = createAudio(settings);
+  const boardHud = createBoardHud(stage, { cellSize: CELL }); // 電腦思考的視覺化、危機警示
+  const hudSfx = (name, opts) => audio.sfx(name, opts);
   audio.preloadClip(SFX.linkStart); // 封面時先把語音下載好，按下 START 就能立刻播
 
   // 任何按鈕都有點擊音效；第一次點擊時解鎖音訊（瀏覽器規定）
@@ -115,6 +119,7 @@ async function boot() {
     app.screen = 'title';
     app.match = null;
     performer.cancelCurrent();
+    boardHud.clearAll();
     stage.clearBoard();
     stage.resetView();
     stage.controls.autoRotate = true;
@@ -135,6 +140,7 @@ async function boot() {
     app.match = createMatch({ mode: app.mode, firstFaction: app.faction });
     app.busy = false;
     app.thinking = false;
+    boardHud.clearAll();
     stage.clearBoard();
     stage.controls.autoRotate = false;
     stage.resetView();
@@ -150,8 +156,15 @@ async function boot() {
   }
 
   /** 對局結束：先記戰績，播合體技與結局演出，最後換結局曲、顯示結局畫面。 */
+  /** 危機警示：只差一格就連線的格子（用威脅那一方的陣營色）。 */
+  function updateThreats(m) {
+    if (m.isOver()) { boardHud.clearAll(); return; }
+    boardHud.setThreats(threats(m.board).map(t => ({ cell: t.cell, faction: m.factionOf[t.mark] })), { sfx: hudSfx });
+  }
+
   async function finish() {
     const m = app.match;
+    boardHud.clearAll();
     const r = m.result;
     let banner, sub, tone;
     if (app.mode === 'cpu') {
@@ -181,18 +194,26 @@ async function boot() {
     const m = app.match;
     app.busy = true;
     try {
+      boardHud.setThreats([]); // 下棋演出時先收掉警示，演完再重算
       await show(m.play(cell));
       if (app.match !== m) return;
       screens.updateHud(hudState());
+      updateThreats(m);
       if (!m.isOver() && m.isCpuTurn()) {
         app.thinking = true;
         screens.updateHud(hudState());
-        await sleep(CPU_THINK_MS);
+        // 電腦先決定，再把「每格算出來的結果 → 掃描 → 鎖定」演給玩家看
+        const choice = m.peekCpuMove(Math.random);
+        if (settings.shortMode) await sleep(CPU_THINK_MS);
+        else await boardHud.think(cpuInsight(m.board), choice, { sfx: hudSfx, faction: m.factionOf[O] });
         if (app.match !== m) return; // 中途回到標題或重開
+        boardHud.clearInsight();
+        boardHud.setThreats([]);
         app.thinking = false;
-        await show(m.cpuPlay(Math.random));
+        await show(m.cpuPlay(null, choice));
         if (app.match !== m) return;
         screens.updateHud(hudState());
+        updateThreats(m);
       }
       if (m.isOver() && app.match === m) await finish();
     } finally {

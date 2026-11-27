@@ -44,10 +44,15 @@ export function createMatch({ mode, firstFaction }) {
       if (isCpuTurn()) throw new Error('現在輪到電腦。');
       return apply(index);
     },
-    /** 電腦下棋。只在輪到電腦時可用。 */
-    cpuPlay(rng = null) {
+    /** 電腦先決定要下哪一格（不下），讓畫面可以先演出「思考 → 鎖定」。 */
+    peekCpuMove(rng = null) {
       if (!isCpuTurn()) throw new Error('現在不是電腦的回合。');
-      return apply(chooseMove(board, rng));
+      return chooseMove(board, rng);
+    },
+    /** 電腦下棋。只在輪到電腦時可用。index 有給時下在那格（必須是 peekCpuMove 選的），沒給就自己選。 */
+    cpuPlay(rng = null, index = null) {
+      if (!isCpuTurn()) throw new Error('現在不是電腦的回合。');
+      return apply(index === null ? chooseMove(board, rng) : index);
     },
   };
 }
