@@ -1,59 +1,117 @@
-// 0 綠谷出久：デトロイト・スマッシュ —— 綠色電弧纏身 → 一拳打出錐形衝擊波 → 地面放射狀裂紋 + 氣浪環。
+// 0 綠谷出久：デトロイト・スマッシュ（原創抽象造型）—— 棋盤外半空中，一個巨大的能量拳被綠色閃電纏繞、蓄力
+// → 一拳打出：拳風化成巨大的錐形氣壓，橫掃過整個棋盤 → 一圈圈衝擊波、煙塵被整片吹飛、綠色電弧在棋盤上亂竄。
 import * as THREE from 'three';
-import { emit, ring, flash, arcs, spawn, glowMat, later, residue, rand, easeOut } from '../common.js';
-import { hit, energyMaterial } from '../realism.js';
+import { emit, ring, flash, arcs, bolt, spawn, later, residue, rand, easeIn, easeOut } from '../common.js';
+import { hit, energyMaterial, smoke, sparks, debris } from '../realism.js';
+import { makeFist } from '../models.js';
+
+let fistMat = null;
+function greenFistMaterial() {
+  if (!fistMat) {
+    fistMat = new THREE.MeshPhysicalMaterial({ color: '#d8ffe6', emissive: '#2bff7a', emissiveIntensity: 0.9, roughness: 0.35, metalness: 0, transparent: true, opacity: 0.88, clearcoat: 0.5 });
+    fistMat.userData.shared = true;
+  }
+  return fistMat;
+}
 
 export default function (fx) {
-  const { stage, pos, pal, audio, mul, scale } = fx;
-  const c = fx.color;
-  const fist = pos.clone().setY(pos.y + 1.6 * scale);
+  const { stage, pos, audio, mul, scale } = fx;
+  const green = '#3cff8a';
+  // 拳頭在棋盤外右側的半空中，朝格子打過來
+  const origin = pos.clone().add(new THREE.Vector3(6.5, 2.4, 2.2));
+  const target = pos.clone().setY(pos.y + 0.6);
+  const dir = target.clone().sub(origin).normalize();
 
-  // 蓄力：綠色電弧 + 往上竄的火花
-  arcs(stage, fist, { count: 6 * mul, radius: 0.9 * scale, color: '#7dffa8', life: 0.35 });
-  emit(stage, { pos: fist, count: 30 * mul, color: '#c8ffd9', color2: c, speed: 2.5, life: 0.35, size: 0.18 });
-  audio.sfx('charge', { pitch: 1.2 });
+  const fist = makeFist(greenFistMaterial(), { arm: 0 }); // 只有浮空的能量拳，不拖手臂
+  fist.traverse(o => { if (o.geometry) o.geometry.userData.shared = false; });
+  fist.position.copy(origin);
+  fist.quaternion.setFromUnitVectors(new THREE.Vector3(0, -1, 0), dir);
+  fist.scale.setScalar(0.001);
+  const aura = new THREE.Mesh(new THREE.SphereGeometry(1, 32, 20), energyMaterial(stage, { c1: '#c8ffd8', c2: '#10c050', scroll: 4, scale: [5, 5], fresnel: 1.8, threshold: 0.36, opacity: 0.45 }));
+  aura.scale.set(1.2, 1.1, 1.2);
+  fist.add(aura);
+  stage.fxLayer.add(fist);
 
-  later(stage, 250, () => {
-    // 錐形衝擊波（從拳頭往下打）
-    const coneMat = energyMaterial(stage, { c1: '#eafff0', c2: '#' + c.getHexString(), scroll: -6, scale: [6, 3], fresnel: 0.8, threshold: 0.3, fadeV: 0.15 });
-    const cone = new THREE.Mesh(new THREE.ConeGeometry(1, 1.6, 40, 1, true), coneMat);
-    cone.position.copy(fist).setY(fist.y - 0.8);
-    spawn(stage, cone, {
-      life: 0.35,
+  // ① 能量拳出現、綠色閃電越纏越多（0 ~ 0.9 秒）
+  audio.sfx('charge', { pitch: 0.8 });
+  spawn(stage, new THREE.Group(), {
+    life: 0.9,
+    update(k) {
+      fist.scale.setScalar(Math.max(0.001, easeOut(Math.min(1, k * 3)) * 1.5 * scale));
+      fist.position.copy(origin).addScaledVector(dir, -k * 1.2); // 往後拉、蓄力
+      fist.position.x += rand(-0.03, 0.03) * k; fist.position.y += rand(-0.03, 0.03) * k;
+    },
+  });
+  for (let i = 0; i < 7; i++) {
+    later(stage, 80 + i * 110, () => {
+      arcs(stage, fist.position, { count: 2 + i, radius: 1.2 + i * 0.12, color: green, life: 0.25, width: 0.035 });
+      audio.sfx('thunder', { pitch: 1.6 - i * 0.07, gain: 0.25 + i * 0.03 });
+    });
+  }
+
+  // ② 出拳：拳頭衝向格子上方停住，拳風化成錐形氣壓往前橫掃
+  later(stage, 900, () => {
+    audio.sfx('whoosh', { pitch: 0.6 });
+    const from = fist.position.clone();
+    const stop = target.clone().addScaledVector(dir, -2.0);
+    spawn(stage, new THREE.Group(), {
+      life: 0.16,
+      update(k) { fist.position.lerpVectors(from, stop, easeIn(k)); },
+    });
+  });
+  later(stage, 1060, () => {
+    // 巨大的錐形氣壓：從拳頭往前張開，掃過整個棋盤
+    const len = 12;
+    const coneMat = energyMaterial(stage, { c1: '#ffffff', c2: '#3cff8a', scroll: -10, scale: [10, 4], fresnel: 0.8, threshold: 0.3, fadeV: 0.12, opacity: 0.8, twist: 0.5 });
+    const cone = new THREE.ConeGeometry(5.5 * scale, len, 48, 1, true);
+    cone.translate(0, -len / 2, 0);
+    const blast = new THREE.Mesh(cone, coneMat);
+    blast.position.copy(fist.position);
+    blast.quaternion.setFromUnitVectors(new THREE.Vector3(0, -1, 0), dir);
+    spawn(stage, blast, {
+      life: 0.75,
       update(k) {
-        const s = 0.2 + easeOut(k) * 1.4 * scale;
-        cone.scale.set(s, 1 + k * 0.4, s);
-        coneMat.uniforms.uOpacity.value = 1 - k;
+        const g = easeOut(Math.min(1, k / 0.3));
+        blast.scale.set(0.2 + 0.8 * g, Math.max(0.01, g), 0.2 + 0.8 * g);
+        coneMat.uniforms.uOpacity.value = 0.8 * (k < 0.4 ? 1 : 1 - (k - 0.4) / 0.6);
       },
     });
-    emit(stage, { pos: fist, count: 120 * mul, color: c, color2: '#ffffff', shape: 'cone', dir: new THREE.Vector3(0, -1, 0), angle: 0.6, speed: 9 * scale, life: 0.45, size: 0.3 });
-
-    // 地面裂紋：放射狀發光細線
-    const cracks = new THREE.Group();
-    const n = Math.round(10 * mul);
-    for (let i = 0; i < n; i++) {
-      const len = rand(0.7, 1.3) * scale;
-      const m = new THREE.Mesh(new THREE.BoxGeometry(len, 0.02, 0.05), glowMat('#b6ffcd', 1));
-      const a = (i / n) * Math.PI * 2 + rand(-0.2, 0.2);
-      m.position.set(Math.cos(a) * len / 2, 0, Math.sin(a) * len / 2);
-      m.rotation.y = -a;
-      cracks.add(m);
+    hit(fx, { power: 1.6, color: green, smokeColor: '#d8e0d8', debrisColor: '#4a5a4a', at: target.clone() });
+    debris(stage, pos.clone().setY(0.3), { count: 30, color: '#4a5a4a', power: 1.6 });
+    flash(stage, target, { color: '#7fffb0', intensity: 50, distance: 14, life: 0.5 });
+    audio.sfx('explode', { pitch: 0.8 });
+    audio.sfx('impact', { pitch: 0.5 });
+    // 一圈圈擴散到整個棋盤的衝擊波
+    for (let i = 0; i < 4; i++) ring(stage, pos, { color: i % 2 ? '#ffffff' : green, radius: (3 + i * 1.6) * scale, life: 0.55 + i * 0.1, width: 0.1, y: 0.15 + i * 0.1, delay: i * 0.07 });
+    // 整片煙塵沿著拳風的方向被吹飛
+    for (let i = 0; i < 10; i++) {
+      const p = new THREE.Vector3(rand(-4, 4), 0.3, rand(-4, 4));
+      smoke(stage, p, { count: 4, color: '#e8efe8', size: 1.4, life: 1.0, speed: 2.5, alpha: 0.45, radius: 0.4 });
+      emit(stage, { pos: p, count: 10 * mul, color: '#ffffff', color2: green, shape: 'cone', dir: dir.clone().setY(0.15), angle: 0.4, speed: 9, drag: 1.2, life: 0.6, size: 0.18 });
     }
-    cracks.position.copy(pos).setY(pos.y + 0.03);
-    spawn(stage, cracks, {
-      life: 0.8,
+    // 綠色電弧在棋盤上亂竄
+    for (let w = 0; w < 5; w++) {
+      later(stage, 60 + w * 120, () => {
+        const a = new THREE.Vector3(rand(-4, 4), rand(0.2, 0.6), rand(-4, 4)), b = new THREE.Vector3(rand(-4, 4), rand(0.2, 0.6), rand(-4, 4));
+        bolt(stage, a, b, { color: green, width: 0.04, life: 0.22, segments: 10, jag: 0.5 });
+      });
+    }
+    // 拳頭收回、淡出
+    spawn(stage, new THREE.Group(), {
+      life: 0.5,
       update(k) {
-        cracks.scale.setScalar(Math.min(1, k * 4));
-        cracks.children.forEach(m => { m.material.opacity = 1 - k; });
+        fist.position.addScaledVector(dir, -0.15);
+        aura.material.uniforms.uOpacity.value = 0.45 * (1 - k);
+        fistMat.opacity = 0.88 * (1 - k);
+        if (k >= 1) {
+          if (fist.parent) fist.parent.remove(fist);
+          fist.traverse(o => { if (o.geometry) o.geometry.dispose(); });
+          aura.material.dispose();
+          fistMat.opacity = 0.88;
+        }
       },
     });
-
-    ring(stage, pos, { color: c, radius: 2.4 * scale, life: 0.5, width: 0.25 });
-    ring(stage, pos, { color: '#ffffff', radius: 1.6 * scale, life: 0.4, width: 0.1, delay: 0.05, y: 0.4 });
-    emit(stage, { pos: pos.clone().setY(pos.y + 0.2), count: 70 * mul, color: '#ddffe8', color2: c, shape: 'ring', speed: 7 * scale, drag: 2.5, life: 0.6, size: 0.35 });
-    hit(fx, { power: 1.1, debrisColor: '#6d6a60' });
-    audio.sfx('impact');
-    audio.sfx('wind', { delay: 0.05 });
-    residue(fx, { delay: 0.15 });
+    later(stage, 200, () => sparks(stage, target, { count: 60 * mul, color: '#bfffd6', speed: 9 }));
+    residue(fx, { delay: 0.3 });
   });
 }

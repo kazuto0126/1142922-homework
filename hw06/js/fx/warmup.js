@@ -40,7 +40,8 @@ export function fxWarmupObjects(stage) {
  */
 export function rehearse(stage) {
   const silent = { sfx() {}, clip() {} };
-  const plan = [[4, 'gojo'], [3, 'sukuna'], [5, 'gojo'], [0, 'sukuna'], [1, 'gojo'], [2, 'sukuna'], [7, 'gojo']]; // 盤面位置：刀劍、妖精尾巴、超電磁砲、火影、死神、航海王、巨人（特效最重的先預演）
+  // 九招全部預演一次（盤面位置；特效最重的先），每招間隔 0.5 秒，整段約 4.5 秒，在登入動畫結束前跑完
+  const plan = [[4, 'gojo'], [3, 'sukuna'], [5, 'gojo'], [0, 'sukuna'], [1, 'gojo'], [2, 'sukuna'], [6, 'gojo'], [7, 'sukuna'], [8, 'gojo']];
   let stopped = false;
   const timers = [];
   import('./skills/index.js').then(({ SKILLS, makeFx }) => import('./common.js').then(({ palette }) => import('../core/worlds.js').then(({ WORLDS }) => {
@@ -48,7 +49,7 @@ export function rehearse(stage) {
       timers.push(setTimeout(() => {
         if (stopped) return;
         try { SKILLS[cell](makeFx({ stage, cell, faction, tier: 'key', audio: silent, world: WORLDS[cell], pal: palette(faction) })); } catch (e) { console.warn('rehearse', e); }
-      }, i * 600));
+      }, i * 500));
     });
   })));
   return () => {
