@@ -4,6 +4,13 @@ import { FACTIONS } from '../core/worlds.js';
 
 const systems = new WeakMap(); // stage → 粒子系統
 
+// 粒子數量的整體倍率：完整畫質也比原本少三成（使用者覺得放招式時會卡，特效可以稍微調低）；輕量版更少
+export const FX_HIGH = 0.7;
+/** 依畫質換算實際要生幾顆粒子。lowMul：輕量版的倍率。 */
+export function fxCount(stage, count, lowMul = 0.45) {
+  return Math.round(count * (stage.quality === 'low' ? lowMul : FX_HIGH));
+}
+
 export function palette(faction) {
   const f = FACTIONS[faction];
   return { primary: new THREE.Color(f.primary), secondary: new THREE.Color(f.secondary), accent: new THREE.Color(faction === 'sukuna' ? '#ffb0b8' : '#c9a8ff') };
@@ -138,7 +145,7 @@ export function emit(stage, {
   angle = 0.4, radius = 0, alpha = 1,
 }) {
   const sys = particleSystem(stage);
-  const n = Math.round(count * (stage.quality === 'low' ? 0.45 : 1));
+  const n = fxCount(stage, count);
   const c1 = new THREE.Color(color);
   const c2 = color2 ? new THREE.Color(color2) : c1;
   const d = dir.clone().normalize();
@@ -323,7 +330,7 @@ export function pendingFx(stage) {
 /** 粒子從四周往 center 聚集（聚氣、吸氣）。 */
 export function converge(stage, center, { radius = 1.5, count = 60, color = '#ffffff', color2 = null, life = 0.35, size = 0.25 } = {}) {
   const sys = particleSystem(stage);
-  const n = Math.round(count * (stage.quality === 'low' ? 0.45 : 1));
+  const n = fxCount(stage, count);
   const c1 = new THREE.Color(color), c2 = color2 ? new THREE.Color(color2) : c1, c = new THREE.Color();
   const d = new THREE.Vector3(), p = new THREE.Vector3(), v = new THREE.Vector3();
   for (let i = 0; i < n; i++) {

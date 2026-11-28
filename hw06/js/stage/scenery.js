@@ -113,11 +113,20 @@ export function makeSky(uTime) {
         float wB = exp(3.0 * (dot(dir, vec2(0.7071, 0.7071)) - 1.0));
         float sum = wC + wV + wG + wB;
         wC /= sum; wV /= sum; wG /= sum; wB /= sum;
+        // 權重很小的方位直接不算（省效能）：先扣掉一個小門檻再重新歸一，過渡仍然連續、不會有接縫
+        const float CUT = 0.06;
+        wC = max(wC - CUT, 0.0); wV = max(wV - CUT, 0.0); wG = max(wG - CUT, 0.0); wB = max(wB - CUT, 0.0);
+        sum = wC + wV + wG + wB;
+        wC /= sum; wV /= sum; wG /= sum; wB /= sum;
         // 佔優勢的那一側變亮，另一側稍微暗一點
         float kC = 1.0 + max(-uBias, 0.0) * 0.9 - max(uBias, 0.0) * 0.35;
         float kV = 1.0 + max(uBias, 0.0) * 0.9 - max(-uBias, 0.0) * 0.35;
         // 用真正的高度（地平線以下是負的），雲、遠火、極光才不會被拉成直條
-        vec3 col = crimson(d, h, az) * wC * kC + violet(d, h, az) * wV * kV + gold(d, h, az) * wG * 0.6 + blue(d, h) * wB;
+        vec3 col = vec3(0.0);
+        if (wC > 0.0) col += crimson(d, h, az) * wC * kC;
+        if (wV > 0.0) col += violet(d, h, az) * wV * kV;
+        if (wG > 0.0) col += gold(d, h, az) * wG * 0.6;
+        if (wB > 0.0) col += blue(d, h) * wB;
         // 星星：深藍那側最多，金色那側幾乎看不到
         vec3 sp = d * 220.0;
         vec3 cell = floor(sp);

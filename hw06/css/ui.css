@@ -465,7 +465,7 @@ h2 { margin: 0; font-size: clamp(24px, 5vw, 36px); letter-spacing: 0.15em; }
 
 .banner .sub { font-family: var(--jp-font); font-size: clamp(16px, 2.6vw, 28px); color: #fff; text-shadow: 0 2px 8px #000; }
 
-@keyframes slam { from { transform: scale(2.6); opacity: 0; filter: blur(8px); } }
+@keyframes slam { from { transform: scale(2.6); opacity: 0; } } /* 不用動態模糊濾鏡：大字加模糊每幀都要重算，弱一點的顯示卡會卡 */
 
 .screen-flash { position: absolute; inset: 0; animation: flash-out ease-out both; mix-blend-mode: screen; }
 @keyframes flash-out { from { opacity: 0.9; } to { opacity: 0; } }
@@ -502,7 +502,7 @@ h2 { margin: 0; font-size: clamp(24px, 5vw, 36px); letter-spacing: 0.15em; }
 .login.typing .login-text .ls { animation: ls-type 0.6s steps(10) forwards; }
 .login.tunnel .login-text .ls { clip-path: inset(0 0 0 0); animation: ls-out 0.55s ease-in forwards; }
 @keyframes ls-type { to { clip-path: inset(0 0 0 0); } }
-@keyframes ls-out { to { opacity: 0; transform: scale(2.4); filter: blur(6px); } }
+@keyframes ls-out { to { opacity: 0; transform: scale(2.4); } }
 .login-flash { position: absolute; inset: 0; background: #fff; opacity: 0; pointer-events: none; transition: opacity 0.25s; }
 .login.flash .login-flash { opacity: 1; }
 .login.welcome .login-flash { opacity: 0; transition: opacity 0.9s; }
@@ -520,7 +520,7 @@ h2 { margin: 0; font-size: clamp(24px, 5vw, 36px); letter-spacing: 0.15em; }
   color: #2a3550; font-family: Consolas, 'Courier New', monospace;
   animation: boot-in 0.8s ease-out both;
 }
-@keyframes boot-in { from { filter: brightness(1.25) blur(6px); } } /* 不從透明淡入：一打開就完全蓋住棋盤 */
+@keyframes boot-in { from { filter: brightness(1.25); } } /* 不從透明淡入：一打開就完全蓋住棋盤 */
 .boot-grid {
   position: absolute; inset: -2px; pointer-events: none; opacity: 0.55;
   background-image: linear-gradient(#c9d3e3 1px, transparent 1px), linear-gradient(90deg, #c9d3e3 1px, transparent 1px);
@@ -578,7 +578,7 @@ h2 { margin: 0; font-size: clamp(24px, 5vw, 36px); letter-spacing: 0.15em; }
 .boot .credits-link { position: absolute; left: 50%; transform: translateX(-50%); bottom: 16px; color: #5a6a8c; }
 /* 按下 START 後：白色介面往中心收、變亮，接上登入動畫 */
 .boot.diving { animation: boot-dive 0.45s ease-in forwards; }
-@keyframes boot-dive { to { opacity: 0; transform: scale(1.15); filter: brightness(1.4) blur(4px); } }
+@keyframes boot-dive { to { opacity: 0; transform: scale(1.15); } } /* 只用位移和透明度（顯示卡直接合成，不用每幀重畫整個全螢幕畫面） */
 @media (max-width: 640px) { .boot-checks { top: 70px; } .boot-center { top: 58%; } .boot-rings { top: 58%; } }
 
 /* ── 領域對決（輸的時候，伏魔御廚子之前） ── */

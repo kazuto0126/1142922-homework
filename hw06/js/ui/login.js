@@ -21,7 +21,7 @@ export function playLogin({ startAudio = null } = {}) {
     document.body.appendChild(root);
     const canvas = root.querySelector('canvas');
     const g = canvas.getContext('2d');
-    const dpr = Math.min(devicePixelRatio || 1, 2);
+    const dpr = Math.min(devicePixelRatio || 1, 1.25); // 全螢幕光束隧道：解析度不用太高（背後同時在預演特效、量效能）
     const resize = () => { canvas.width = innerWidth * dpr; canvas.height = innerHeight * dpr; };
     resize();
     window.addEventListener('resize', resize);

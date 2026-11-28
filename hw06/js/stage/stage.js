@@ -152,6 +152,8 @@ export function createStage(canvas, { quality = 'high' } = {}) {
   // ── 後製 ──
   // 後製用的畫面加上 4 倍多重取樣抗鋸齒（EffectComposer 預設沒有，邊緣會有鋸齒）
   const composer = new EffectComposer(renderer, new THREE.WebGLRenderTarget(2, 2, { type: THREE.HalfFloatType, samples: 4 }));
+  // 只有畫 3D 場景的那張（renderTarget1）需要多重取樣；後面全螢幕後製寫的那張不用（畫面一樣，省下每幀好幾毫秒）
+  composer.renderTarget2.samples = 0;
   composer.addPass(new RenderPass(scene, camera));
   // 門檻設在 1 以上：只有真的會發光的東西（招式、光核、邊框）才泛光，棋盤本身保持清晰不霧
   const bloom = new UnrealBloomPass(new THREE.Vector2(256, 256), 0.6, 0.45, 1.0);
@@ -176,11 +178,14 @@ export function createStage(canvas, { quality = 'high' } = {}) {
   }
 
   // ── 自動調整畫質：幀率掉下來就先降解析度、再關鏡面反射，順暢優先 ──
-  // 等級：[解析度倍率, 鏡面反射解析度（0 = 關）]
-  const PERF_LEVELS = [[1, 0.5], [0.85, 0.5], [0.75, 0.4], [0.65, 0.35], [0.6, 0]];
+  // 等級：[解析度倍率, 鏡面反射解析度（0 = 關）, 抗鋸齒取樣數]
+  // 第一步先關多重取樣抗鋸齒（實測最吃顯示卡、關掉在高解析度螢幕上幾乎看不出來），再降解析度
+  const PERF_LEVELS = [[1, 0.5, 4], [1, 0.5, 0], [0.85, 0.5, 0], [0.75, 0.4, 0], [0.65, 0.35, 0], [0.6, 0, 0]];
   const perf = { level: 0, samples: [], since: performance.now(), goodWindows: 0, badWindows: 0, fps: 60 };
   function applyPerf() {
-    const [scaleRes, mirrorRes] = PERF_LEVELS[perf.level];
+    const [scaleRes, mirrorRes, samples] = PERF_LEVELS[perf.level];
+    const rt = composer.renderTarget1;
+    if (rt.samples !== samples) { rt.samples = samples; rt.dispose(); } // 下次用到時依新的取樣數重建
     // 解析度倍率上限 1.5：高解析度筆電原本用 2 倍（像素量是 4 倍），加上抗鋸齒、泛光、鏡面反射負擔太重；1.5 倍肉眼幾乎看不出差別
     const maxPR = quality === 'high' ? Math.min(window.devicePixelRatio || 1, 1.5) : 1;
     renderer.setPixelRatio(Math.max(0.5, maxPR * (quality === 'high' ? scaleRes : 1)));

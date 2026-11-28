@@ -1,6 +1,6 @@
 // 質感特效：流動的能量材質、煙霧、拉長的火花、會彈跳的碎石、地面焦痕，以及把它們組合起來的「命中」。
 import * as THREE from 'three';
-import { emit, ring, flash, spawn, later, rand } from './common.js';
+import { emit, ring, flash, spawn, later, rand, fxCount } from './common.js';
 
 const TILE_TOP = 0.125;
 
@@ -163,7 +163,7 @@ function smokeSystem(stage) {
 /** 一團煙（不發光，會往上飄、長大、變淡）。 */
 export function smoke(stage, pos, { count = 18, color = '#3a3a44', size = 1.6, life = 1.6, speed = 1.6, alpha = 0.55, radius = 0.5 } = {}) {
   const sys = smokeSystem(stage);
-  const n = Math.round(count * (stage.quality === 'low' ? 0.5 : 1));
+  const n = fxCount(stage, count, 0.5);
   const c = new THREE.Color(color);
   const p = new THREE.Vector3(), v = new THREE.Vector3();
   for (let i = 0; i < n; i++) {
@@ -227,7 +227,7 @@ function sparkSystem(stage) {
 /** 一把火花：四散、受重力、碰到地板會彈。dir 有給時往那個方向偏。 */
 export function sparks(stage, pos, { count = 60, color = '#ffd27a', speed = 9, life = 0.6, gravity = -14, dir = null, spread = 1 } = {}) {
   const sys = sparkSystem(stage);
-  const n = Math.round(count * (stage.quality === 'low' ? 0.5 : 1));
+  const n = fxCount(stage, count, 0.5);
   const c = new THREE.Color(color);
   const v = new THREE.Vector3();
   for (let i = 0; i < n; i++) {
@@ -303,7 +303,7 @@ function debrisSystem(stage) {
 /** 碎石：從 pos 炸開，落在棋盤上彈跳、最後縮小消失。 */
 export function debris(stage, pos, { count = 24, color = '#6b6577', power = 1, life = 1.8 } = {}) {
   const sys = debrisSystem(stage);
-  const n = Math.round(count * (stage.quality === 'low' ? 0.5 : 1));
+  const n = fxCount(stage, count, 0.5);
   const base = new THREE.Color(color);
   const v = new THREE.Vector3();
   for (let i = 0; i < n; i++) {

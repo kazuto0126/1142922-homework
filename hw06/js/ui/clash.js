@@ -30,7 +30,7 @@ export function playDomainClash({ sfx = () => {}, outcome = 'lose' } = {}) {
     document.body.appendChild(root);
     const canvas = root.querySelector('canvas');
     const g = canvas.getContext('2d');
-    const dpr = Math.min(devicePixelRatio || 1, 2);
+    const dpr = Math.min(devicePixelRatio || 1, 1.25); // 全螢幕 2D 畫布（還有一張離屏的），解析度不用太高，省很多
     let W = 0, H = 0;
     const resize = () => { W = canvas.width = Math.round(innerWidth * dpr); H = canvas.height = Math.round(innerHeight * dpr); };
     resize();
@@ -174,18 +174,19 @@ export function playDomainClash({ sfx = () => {}, outcome = 'lose' } = {}) {
       if (draw && rightCracks.length) {
         const grow = Math.min(1, (t - T.crack) / (T.shatter - T.crack));
         g.lineCap = 'round';
-        g.strokeStyle = 'rgba(255,255,255,0.95)';
-        g.lineWidth = 2.5 * dpr;
-        g.shadowColor = '#8fb4ff';
-        g.shadowBlur = 12 * dpr;
+        // 發光：先畫一條寬的半透明色光、再畫細白芯（不用 shadowBlur，那個每幀都要做模糊，很慢）
         for (const c of rightCracks) {
           const n = Math.max(1, Math.floor(c.length * grow));
           g.beginPath();
           g.moveTo(c[0][0], c[0][1]);
           for (let k = 1; k < n; k++) g.lineTo(c[k][0], c[k][1]);
+          g.strokeStyle = 'rgba(143,180,255,0.35)';
+          g.lineWidth = 10 * dpr;
+          g.stroke();
+          g.strokeStyle = 'rgba(255,255,255,0.95)';
+          g.lineWidth = 2.5 * dpr;
           g.stroke();
         }
-        g.shadowBlur = 0;
       }
       g.restore();
 
@@ -219,16 +220,16 @@ export function playDomainClash({ sfx = () => {}, outcome = 'lose' } = {}) {
           lg.lineCap = 'round';
           for (const c of cracks) {
             const n = Math.max(1, Math.floor(c.length * grow));
-            lg.strokeStyle = 'rgba(255,255,255,0.95)';
-            lg.lineWidth = 2.5 * dpr;
-            lg.shadowColor = '#ff3347';
-            lg.shadowBlur = 12 * dpr;
             lg.beginPath();
             lg.moveTo(c[0][0], c[0][1]);
             for (let k = 1; k < n; k++) lg.lineTo(c[k][0], c[k][1]);
+            lg.strokeStyle = 'rgba(255,51,71,0.35)'; // 寬的紅光（取代 shadowBlur）
+            lg.lineWidth = 10 * dpr;
+            lg.stroke();
+            lg.strokeStyle = 'rgba(255,255,255,0.95)';
+            lg.lineWidth = 2.5 * dpr;
             lg.stroke();
           }
-          lg.shadowBlur = 0;
         }
         g.save();
         g.translate(-(1 - appear) * W * 0.5 - apart, 0);
