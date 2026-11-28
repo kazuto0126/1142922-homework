@@ -31,7 +31,8 @@ export function supportsWebGL() {
 const ease = k => (k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2);
 
 export function createStage(canvas, { quality = 'high' } = {}) {
-  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
+  // 畫布本身不開多重取樣：完整版的抗鋸齒在後製的繪圖緩衝區做，畫布再開一次是白做工；輕量版為了順暢不做抗鋸齒
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance' });
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.0;
@@ -172,6 +173,7 @@ export function createStage(canvas, { quality = 'high' } = {}) {
     renderer.shadowMap.enabled = high;
     key.castShadow = high;
     setCrystalQuality(pieces, high);
+    sky.material.defines.SKY_LITE = high ? 0 : 1; // 輕量版的天空不算雲層
     perf.level = 0;
     applyPerf();
     scene.traverse(o => { if (o.material) [].concat(o.material).forEach(m => { m.needsUpdate = true; }); });
@@ -197,6 +199,7 @@ export function createStage(canvas, { quality = 'high' } = {}) {
   }
   // 用每秒的「中位數」判斷，而且要連續兩秒都慢才降一級：換場景、第一次畫某個特效時偶爾一兩幀特別慢很正常，
   // 不該因此降畫質（每換一級都要重建所有繪圖緩衝區，本身就會讓 GPU 頓 60~100ms）。
+  const struggleFns = [];
   function trackPerf(rawDt) {
     if (quality !== 'high' || document.hidden || rawDt > 0.25) return; // 背景分頁、切換時的長間隔不算
     const now = performance.now();
@@ -207,9 +210,17 @@ export function createStage(canvas, { quality = 'high' } = {}) {
     const med = sorted[sorted.length >> 1];
     perf.fps = Math.round(1 / med);
     perf.samples = []; perf.since = now;
-    if (med > 1 / 48 && perf.level < PERF_LEVELS.length - 1) {
+    if (med > 1 / 30 && perf.level < PERF_LEVELS.length - 1) {
+      // 很慢（不到 30fps）：不用等兩秒，直接降兩級
+      perf.goodWindows = 0; perf.badWindows = 0;
+      perf.level = Math.min(PERF_LEVELS.length - 1, perf.level + 2);
+      applyPerf();
+    } else if (med > 1 / 48 && perf.level < PERF_LEVELS.length - 1) {
       perf.goodWindows = 0;
       if (++perf.badWindows >= 2) { perf.level++; perf.badWindows = 0; applyPerf(); }
+    } else if (med > 1 / 40 && perf.level === PERF_LEVELS.length - 1) {
+      // 已經降到最低還是不到 40fps：通知外面（自動模式會換成輕量版）
+      if (++perf.badWindows >= 2) { perf.badWindows = 0; for (const fn of struggleFns) fn(perf.fps); }
     } else if (med < 1 / 75 && perf.level > 0 && !camTween) {
       perf.badWindows = 0;
       if (++perf.goodWindows >= 4) { perf.level--; perf.goodWindows = 0; applyPerf(); }
@@ -812,10 +823,13 @@ export function createStage(canvas, { quality = 'high' } = {}) {
   function stopBenchmark() {
     const b = bench;
     bench = null;
-    if (!b || b.samples.length < 12) return null; // 樣本太少（分頁在背景、瀏覽器限速）就不下判斷，交給執行中的自動調整
+    if (!b || b.samples.length < 3) return null;
     const s = b.samples.sort((x, y) => x - y);
     const at = q => +s[Math.min(s.length - 1, Math.floor(s.length * q))].toFixed(1);
-    return { median: at(0.5), p75: at(0.75), n: s.length };
+    const r = { median: at(0.5), p75: at(0.75), n: s.length };
+    // 樣本少：如果每幀都很慢，那就是電腦慢（慢的電腦本來就畫不出幾幀）；每幀很快卻沒幾幀，才是分頁被瀏覽器限速，不下判斷
+    if (s.length < 12 && r.median < 48) return null;
+    return r;
   }
   /** 直接指定自動畫質的等級（0 = 最高解析度）。 */
   function setPerfLevel(n) {
@@ -892,7 +906,8 @@ export function createStage(canvas, { quality = 'high' } = {}) {
     scene, camera, renderer, controls, fxLayer,
     cellCenter: i => cells[i].center.clone(),
     pickCell, setHover, setWorldImage, placePiece, placeStandee, clearBoard, takeCell, cellsOf, resetEnvironment, cancelFx, onCancelFx,
-    onFrame, tween, flyTo, borrowLight, warmup, warmDraw, setRunning, setRenderEvery, startBenchmark, stopBenchmark, setPerfLevel, recompile, introSweep, cameraPath, mirror, composer, bloom, setSkyMood,
+    onFrame, tween, flyTo, borrowLight, warmup, warmDraw, setRunning, setRenderEvery, startBenchmark, stopBenchmark, setPerfLevel, recompile,
+    onStruggle(fn) { struggleFns.push(fn); }, introSweep, cameraPath, mirror, composer, bloom, setSkyMood,
     get perf() { return { level: perf.level, fps: perf.fps, pixelRatio: renderer.getPixelRatio(), mirror: mirror.enabled }; },
     /** 開發用：停掉自動更新，改成手動推進（瀏覽器暫停動畫時截圖用）。 */
     manualTick(on) { refresh.last = 0; renderer.setAnimationLoop(on ? null : loop); return frame; }, orbitLine, restoreView, snapBack, resetView, setQuality, shake, impact,

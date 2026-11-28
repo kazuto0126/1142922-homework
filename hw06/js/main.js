@@ -129,16 +129,39 @@ async function boot() {
     onSettings: s => applySettings(s),
   }, { leaderImages });
 
+  // 之前在這台電腦上跑不動、被自動換成輕量版過：記起來，下次直接用輕量版（7 天內）
+  const LITE_KEY = 'hw06-1142922-lite';
+  const rememberedLite = () => { try { return Date.now() - Number(storage?.getItem(LITE_KEY) || 0) < 7 * 864e5; } catch { return false; } };
+
   async function measureAndPickQuality() {
     stage.startBenchmark({ skipMs: 800 });
     await sleep(3300);
     const result = stage.stopBenchmark();
-    const tier = pickTier(result);
+    let tier = pickTier(result);
+    if (rememberedLite()) tier = 'lite';
     app.bench = { ...result, tier };
     if (!tier || settings.quality !== 'auto') return;
     app.autoTier = tier;
     await applyTier(tier);
   }
+
+  // 自動模式下，完整版已經降到最低還是跑不順：等輪到玩家、畫面靜止時換成輕量版（換的時候要重新編譯，頓一兩秒）
+  let wantLite = false;
+  stage.onStruggle(() => {
+    if (settings.quality !== 'auto' || app.autoTier === 'lite' || wantLite) return;
+    wantLite = true;
+    try { storage?.setItem(LITE_KEY, String(Date.now())); } catch { /* 存不了就算了 */ }
+    const tryNow = () => {
+      if (!wantLite) return;
+      let busy = true;
+      try { busy = performer.busy || app.busy || app.diving; } catch { /* 開場還沒建好演出器 */ }
+      if (busy) { setTimeout(tryNow, 500); return; }
+      wantLite = false;
+      app.autoTier = 'lite';
+      applyTier('lite');
+    };
+    tryNow();
+  });
 
   /** 套用自動模式選出來的等級。換成輕量版時先暫停 3D、在背景重新編譯好著色器再繼續畫，才不會卡。 */
   async function applyTier(tier) {

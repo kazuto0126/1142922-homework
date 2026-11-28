@@ -29,6 +29,8 @@ export function makeSky(uTime) {
       uTime, uFade: { value: 1 }, uBias: { value: 0 },
       uOver: { value: new THREE.Color('#ff2030') }, uOverAmt: { value: 0 },
     },
+    // SKY_LITE = 1：輕量版，只留漸層、太陽、極光和星星，不算雲層的分形雜訊（舊筆電的內顯算這個很吃力）
+    defines: { SKY_LITE: 0 },
     vertexShader: `
       varying vec3 vDir;
       void main() {
@@ -47,6 +49,9 @@ export function makeSky(uTime) {
       vec3 crimson(vec3 d, float h, float az) {
         vec3 col = mix(vec3(0.62, 0.10, 0.05), vec3(0.16, 0.01, 0.04), smoothstep(0.0, 0.35, h));
         col = mix(col, vec3(0.03, 0.0, 0.012), smoothstep(0.3, 0.9, h));
+        #if SKY_LITE
+        return col;
+        #endif
         float n = fbm(vec3(az * 3.0 + uTime * 0.01, h * 7.0, 1.3));
         float band = smoothstep(0.0, 0.08, h) * smoothstep(0.38, 0.15, h);
         float cloud = smoothstep(0.42, 0.68, n) * band;
@@ -62,7 +67,11 @@ export function makeSky(uTime) {
         vec3 col = mix(vec3(0.10, 0.05, 0.24), vec3(0.01, 0.01, 0.05), smoothstep(0.0, 0.7, h));
         for (int i = 0; i < 2; i++) {
           float fi = float(i);
+          #if SKY_LITE
+          float y0 = 0.28 + fi * 0.14 + 0.07 * sin(az * (4.0 + fi) + uTime * (0.25 + fi * 0.1));
+          #else
           float y0 = 0.28 + fi * 0.14 + 0.07 * sin(az * (4.0 + fi) + uTime * (0.25 + fi * 0.1)) + 0.05 * (fbm(vec3(az * 6.0, uTime * 0.12, fi)) - 0.5);
+          #endif
           float curtain = exp(-abs(h - y0) * 16.0) * (0.45 + 0.55 * vnoise(vec3(az * 40.0, uTime * 0.6, fi)));
           float rays = smoothstep(y0 - 0.02, y0 + 0.18, h) * smoothstep(y0 + 0.3, y0, h) * spow(vnoise(vec3(az * 90.0, uTime * 0.3, fi + 3.0)), 3.0);
           vec3 c = mix(vec3(0.25, 0.9, 0.8), vec3(0.6, 0.3, 1.0), clamp(fi * 0.7 + 0.3 * sin(az * 3.0 + uTime * 0.2), 0.0, 1.0));
@@ -77,6 +86,9 @@ export function makeSky(uTime) {
         vec3 sunDir = normalize(vec3(-0.72, 0.1, 0.69));
         float s = max(dot(d, sunDir), 0.0);
         col += vec3(1.3, 0.85, 0.45) * (spow(s, 900.0) * 3.0 + spow(s, 40.0) * 0.6 + spow(s, 6.0) * 0.18);
+        #if SKY_LITE
+        return col;
+        #endif
         // 從太陽放射出去的光芒
         vec3 t1 = normalize(cross(sunDir, vec3(0.0, 1.0, 0.0)));
         vec3 t2 = cross(t1, sunDir);
@@ -94,6 +106,9 @@ export function makeSky(uTime) {
       // 右後：深藍星海
       vec3 blue(vec3 d, float h) {
         vec3 col = mix(vec3(0.02, 0.04, 0.12), vec3(0.004, 0.006, 0.02), smoothstep(-0.1, 0.8, h));
+        #if SKY_LITE
+        return col;
+        #endif
         vec3 q = d * 2.6 + vec3(uTime * 0.006, 0.0, uTime * 0.004);
         float n = fbm(q + fbm(q * 1.7) * 0.9);
         float cloud = smoothstep(0.45, 0.85, n) * smoothstep(-0.3, 0.2, h) * smoothstep(0.9, 0.2, h);
