@@ -186,8 +186,10 @@ export function createStage(canvas, { quality = 'high' } = {}) {
     const [scaleRes, mirrorRes, samples] = PERF_LEVELS[perf.level];
     const rt = composer.renderTarget1;
     if (rt.samples !== samples) { rt.samples = samples; rt.dispose(); } // 下次用到時依新的取樣數重建
-    // 解析度倍率上限 1.5：高解析度筆電原本用 2 倍（像素量是 4 倍），加上抗鋸齒、泛光、鏡面反射負擔太重；1.5 倍肉眼幾乎看不出差別
-    const maxPR = quality === 'high' ? Math.min(window.devicePixelRatio || 1, 1.5) : 1;
+    // 解析度倍率上限：一般筆電（螢幕縮放 125%、150%）用 1 倍畫、靠多重取樣抗鋸齒把邊緣修平——實測比 1.25 倍每幀省 6ms 以上，
+    // 畫面只稍微軟一點；Retina 這類 2 倍螢幕用 1.5 倍（1 倍會明顯糊）
+    const dpr = window.devicePixelRatio || 1;
+    const maxPR = quality === 'high' ? Math.min(dpr, dpr >= 2 ? 1.5 : 1) : 1;
     renderer.setPixelRatio(Math.max(0.5, maxPR * (quality === 'high' ? scaleRes : 1)));
     mirror.enabled = quality === 'high' && mirrorRes > 0;
     mirror.scale = mirrorRes || 0.35;
@@ -349,7 +351,24 @@ export function createStage(canvas, { quality = 'high' } = {}) {
     }
     if (shook) camera.position.sub(shakeOff);
   };
-  renderer.setAnimationLoop(frame);
+  // 高更新率螢幕（120Hz、144Hz）：瀏覽器每秒會叫 120~144 次，顯示卡負擔變兩倍以上。
+  // 量出螢幕的更新間隔，高於約 85Hz 就每兩次才跑一幀（120→60、144→72），幀距一樣均勻。
+  const refresh = { last: 0, deltas: [], skip: 1, count: 0 };
+  const loop = time => {
+    if (refresh.last) {
+      refresh.deltas.push(time - refresh.last);
+      if (refresh.deltas.length >= 90) {
+        const s = refresh.deltas.sort((a, b) => a - b);
+        const med = s[s.length >> 1];
+        refresh.skip = med > 0 && med < 11.5 ? 2 : 1; // 每 90 次重新量一次（視窗換到別的螢幕也會跟著變）
+        refresh.deltas = [];
+      }
+    }
+    refresh.last = time;
+    if (refresh.skip > 1 && ++refresh.count % refresh.skip) return;
+    frame();
+  };
+  renderer.setAnimationLoop(loop);
 
   let hitStopUntil = 0;
   let fovKick = 0;
@@ -825,7 +844,8 @@ export function createStage(canvas, { quality = 'high' } = {}) {
     running = !!on;
     clock.getDelta(); // 恢復時不要把暫停的時間算成一大步
     perf.samples = []; perf.since = performance.now() + 1500; perf.badWindows = 0; // 剛恢復的頭一秒多不算進畫質判斷
-    renderer.setAnimationLoop(running ? frame : null);
+    refresh.last = 0;
+    renderer.setAnimationLoop(running ? loop : null);
   }
 
   /**
@@ -875,7 +895,7 @@ export function createStage(canvas, { quality = 'high' } = {}) {
     onFrame, tween, flyTo, borrowLight, warmup, warmDraw, setRunning, setRenderEvery, startBenchmark, stopBenchmark, setPerfLevel, recompile, introSweep, cameraPath, mirror, composer, bloom, setSkyMood,
     get perf() { return { level: perf.level, fps: perf.fps, pixelRatio: renderer.getPixelRatio(), mirror: mirror.enabled }; },
     /** 開發用：停掉自動更新，改成手動推進（瀏覽器暫停動畫時截圖用）。 */
-    manualTick(on) { renderer.setAnimationLoop(on ? null : frame); return frame; }, orbitLine, restoreView, snapBack, resetView, setQuality, shake, impact,
+    manualTick(on) { refresh.last = 0; renderer.setAnimationLoop(on ? null : loop); return frame; }, orbitLine, restoreView, snapBack, resetView, setQuality, shake, impact,
     get quality() { return quality; },
     get fxGeneration() { return fxGeneration; },
     get isCinematic() { return !!camTween; },
