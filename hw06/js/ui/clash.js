@@ -2,6 +2,7 @@
 // 左：五條悟的「無量空処」（無限延伸的星空虛空）；右：宿儺的「伏魔御廚子」（血紅天空、落下的斬擊、骨白碎片）。
 // 中間一道斜線，兩邊互推、交界噴火花 → 紅色佔上風、左邊出現裂痕 → 左半邊像玻璃一樣碎掉 → 紅色吞掉整個畫面。
 // 總長約 3.8 秒；可以從外面呼叫 clearClash() 立刻收掉（跳過、回標題）。
+import { makeFrameGate } from './frameGate.js';
 
 const T = { in: 0.35, push: 2.0, crack: 2.0, shatter: 2.65, flood: 3.1, end: 3.8 };
 let active = null;
@@ -142,7 +143,9 @@ export function playDomainClash({ sfx = () => {}, outcome = 'lose' } = {}) {
       }
     }
 
+    const gate = makeFrameGate();
     function frame(now) {
+      if (gate(now)) { raf = requestAnimationFrame(frame); return; } // 高更新率螢幕每兩次才畫一次
       const t = (now - t0) / 1000;
       const dt = Math.min(0.05, (now - last) / 1000);
       last = now;

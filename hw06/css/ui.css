@@ -94,8 +94,12 @@ h2 { margin: 0; font-size: clamp(24px, 5vw, 36px); letter-spacing: 0.15em; }
   mask-image: linear-gradient(to bottom, #000 70%, transparent);
 }
 
-.leader.sukuna canvas { filter: drop-shadow(0 0 24px rgba(255, 51, 71, 0.6)); }
-.leader.gojo canvas { filter: drop-shadow(0 0 24px rgba(138, 92, 255, 0.6)); }
+/* 立繪背後的光暈：用固定的漸層，不用 drop-shadow（立繪每幀都在動，drop-shadow 每幀都要重算模糊，很吃效能） */
+.leader::before {
+  content: ''; position: absolute; inset: 4% -6% 18%; z-index: -1; border-radius: 50%; pointer-events: none;
+}
+.leader.sukuna::before { background: radial-gradient(closest-side, rgba(255, 51, 71, 0.45), transparent); }
+.leader.gojo::before { background: radial-gradient(closest-side, rgba(138, 92, 255, 0.45), transparent); }
 
 .leader figcaption {
   position: absolute;

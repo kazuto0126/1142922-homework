@@ -2,6 +2,7 @@
 //   0.0–0.4 白色介面褪成黑色 → 0.1–1.0 語音「LINK START」、字打出來 → 1.1–4.9 彩色光束隧道越來越快（跟著上升的音效）
 //   → 4.9 白光（音效的安靜空檔）→ 5.3 WELCOME → 6.0 結束、進入遊戲。
 // 點一下或按空白鍵 / Enter 可以跳過。回傳結束時 resolve 的 Promise。
+import { makeFrameGate } from './frameGate.js';
 
 const T = { text: 0.1, tunnel: 1.1, flash: 4.9, welcome: 5.25, end: 6.0 };
 
@@ -61,7 +62,9 @@ export function playLogin({ startAudio = null } = {}) {
     root.addEventListener('pointerdown', () => finish(true));
 
     let last = 0;
+    const gate = makeFrameGate();
     function frame(now) {
+      if (gate(now)) { raf = requestAnimationFrame(frame); return; } // 高更新率螢幕每兩次才畫一次
       const t = (now - t0) / 1000;
       const dt = Math.min(0.05, last ? (now - last) / 1000 : 0.016);
       last = now;

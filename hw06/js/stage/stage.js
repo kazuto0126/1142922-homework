@@ -182,9 +182,14 @@ export function createStage(canvas, { quality = 'high' } = {}) {
   // ── 自動調整畫質：幀率掉下來就先降解析度、再關鏡面反射，順暢優先 ──
   // 等級：[解析度倍率, 鏡面反射解析度（0 = 關）, 抗鋸齒取樣數]
   // 第一步先關多重取樣抗鋸齒（實測最吃顯示卡、關掉在高解析度螢幕上幾乎看不出來），再降解析度
-  const PERF_LEVELS = [[1, 0.5, 4], [1, 0.5, 0], [0.85, 0.5, 0], [0.75, 0.4, 0], [0.65, 0.35, 0], [0.6, 0, 0]];
+  const HIGH_LEVELS = [[1, 0.5, 4], [1, 0.5, 0], [0.85, 0.5, 0], [0.75, 0.4, 0], [0.65, 0.35, 0], [0.6, 0, 0]];
+  // 輕量版也能再往下降解析度（舊筆電連輕量版都跑不順時）
+  const LOW_LEVELS = [[1, 0, 0], [0.85, 0, 0], [0.72, 0, 0], [0.6, 0, 0]];
+  let PERF_LEVELS = HIGH_LEVELS;
   const perf = { level: 0, samples: [], since: performance.now(), goodWindows: 0, badWindows: 0, fps: 60 };
   function applyPerf() {
+    PERF_LEVELS = quality === 'high' ? HIGH_LEVELS : LOW_LEVELS;
+    perf.level = Math.min(perf.level, PERF_LEVELS.length - 1);
     const [scaleRes, mirrorRes, samples] = PERF_LEVELS[perf.level];
     const rt = composer.renderTarget1;
     if (rt.samples !== samples) { rt.samples = samples; rt.dispose(); } // 下次用到時依新的取樣數重建
@@ -192,7 +197,7 @@ export function createStage(canvas, { quality = 'high' } = {}) {
     // 畫面只稍微軟一點；Retina 這類 2 倍螢幕用 1.5 倍（1 倍會明顯糊）
     const dpr = window.devicePixelRatio || 1;
     const maxPR = quality === 'high' ? Math.min(dpr, dpr >= 2 ? 1.5 : 1) : 1;
-    renderer.setPixelRatio(Math.max(0.5, maxPR * (quality === 'high' ? scaleRes : 1)));
+    renderer.setPixelRatio(Math.max(0.5, maxPR * scaleRes));
     mirror.enabled = quality === 'high' && mirrorRes > 0;
     mirror.scale = mirrorRes || 0.35;
     resize();
@@ -201,7 +206,7 @@ export function createStage(canvas, { quality = 'high' } = {}) {
   // 不該因此降畫質（每換一級都要重建所有繪圖緩衝區，本身就會讓 GPU 頓 60~100ms）。
   const struggleFns = [];
   function trackPerf(rawDt) {
-    if (quality !== 'high' || document.hidden || rawDt > 0.25) return; // 背景分頁、切換時的長間隔不算
+    if (document.hidden || rawDt > 0.25) return; // 背景分頁、切換時的長間隔不算
     const now = performance.now();
     if (now < perf.since) return; // 剛恢復繪製的寬限期
     perf.samples.push(rawDt);

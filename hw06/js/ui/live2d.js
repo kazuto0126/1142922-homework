@@ -1,6 +1,7 @@
 // 「Live2D 風」的立繪：把一張圖切成很多橫條，每條用不同的位移畫出來，
 // 做出呼吸起伏、頭部擺動、頭髮衣服飄動的感覺；標題畫面還會跟著滑鼠微微轉向。
 // （真正的 Live2D 需要拆圖層綁骨架的模型，這裡是用一張圖模擬。）
+import { makeFrameGate } from './frameGate.js';
 
 const ROWS = 72;
 const active = new Set();
@@ -16,7 +17,9 @@ let drawnLastFrame = 0;
 /** 驗證用：上一幀實際重畫了幾張立繪。 */
 export const live2dDrawn = () => drawnLastFrame;
 
+const gate = makeFrameGate();
 function loop(now) {
+  if (gate(now)) { raf = requestAnimationFrame(loop); return; } // 高更新率螢幕每兩次才畫一次
   const t = now / 1000;
   drawnLastFrame = 0;
   for (const p of active) {
