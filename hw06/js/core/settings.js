@@ -1,7 +1,7 @@
-// 玩家設定：音樂 / 音效開關、音量、演出長度、畫質。存在 localStorage，壞掉就用預設值。
+// 玩家設定：音樂 / 音效開關、音量、演出長度、畫質（自動 / 高 / 低）。存在 localStorage，壞掉就用預設值。
 const KEY = 'hw06-1142922-settings';
 
-export const DEFAULT_SETTINGS = Object.freeze({ musicOn: true, sfxOn: true, volume: 0.8, shortMode: false, quality: 'high' });
+export const DEFAULT_SETTINGS = Object.freeze({ musicOn: true, sfxOn: true, volume: 0.8, shortMode: false, quality: 'auto' });
 
 function sanitize(raw) {
   const d = DEFAULT_SETTINGS;
@@ -12,7 +12,7 @@ function sanitize(raw) {
     sfxOn: bool(raw.sfxOn, d.sfxOn),
     volume: vol,
     shortMode: bool(raw.shortMode, d.shortMode),
-    quality: raw.quality === 'low' || raw.quality === 'high' ? raw.quality : d.quality,
+    quality: ['auto', 'high', 'low'].includes(raw.quality) ? raw.quality : d.quality, // auto：開頭動畫時量電腦效能自動決定
   };
 }
 

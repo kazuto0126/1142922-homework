@@ -215,7 +215,7 @@ export function createScreens(root, handlers, { leaderImages }) {
         </div>
         <div class="row"><span>畫質</span>
           <div class="seg" data-k="quality">
-            <button data-v="high" class="${s.quality === 'high' ? 'on' : ''}">高</button><button data-v="low" class="${s.quality === 'low' ? 'on' : ''}">低</button>
+            <button data-v="auto" class="${s.quality === 'auto' ? 'on' : ''}" title="開頭動畫時量這台電腦的效能自動決定">自動</button><button data-v="high" class="${s.quality === 'high' ? 'on' : ''}">高</button><button data-v="low" class="${s.quality === 'low' ? 'on' : ''}">低</button>
           </div>
         </div>
         <button class="btn primary" data-act="close">關閉</button>

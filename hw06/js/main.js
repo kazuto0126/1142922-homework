@@ -3,6 +3,7 @@ import { createStage, supportsWebGL, CELL } from './stage/stage.js';
 import { createBoardHud, hudWarmupObjects } from './stage/boardHud.js';
 import { cpuInsight, threats } from './core/insight.js';
 import { moveDamage, MAX_HP } from './core/hp.js';
+import { pickTier, tierSettings } from './core/autoQuality.js';
 import { createMatch, outcomeFor } from './core/match.js';
 import { EMPTY, X, O } from './core/rules.js';
 import { WORLDS, FACTIONS } from './core/worlds.js';
@@ -53,7 +54,7 @@ async function boot() {
   const storage = safeStorage();
   let settings = loadSettings(storage);
   const stats = createStats(storage);
-  const stage = createStage(canvas, { quality: settings.quality });
+  const stage = createStage(canvas, { quality: settings.quality === 'low' ? 'low' : 'high' }); // 自動：先用完整版，開頭動畫時量過再決定
   // 封面完全蓋住棋盤：先不要畫 3D（第一次畫會一次編譯幾十個著色器、卡住封面動畫），按下 START 才開始畫
   stage.setRunning(false);
   const audio = createAudio(settings);
@@ -109,8 +110,12 @@ async function boot() {
       await nextFrame();
       // 登入動畫蓋住整個畫面時，在棋盤上靜音預演幾招：顯示卡第一次畫這些特效會卡一下，先在看不到的時候卡掉
       const stopRehearsal = rehearse(stage);
+      // 自動畫質：預演九招的這幾秒，順便量這台電腦畫完整特效每一幀要多久（頭 0.8 秒的編譯卡頓不算）；
+      // 第 3.3 秒決定給完整版還是輕量版，剩下的登入動畫時間拿來切換、重新編譯，玩家看不到切換的那一下
+      const autoDone = settings.quality === 'auto' ? measureAndPickQuality() : Promise.resolve();
       // 「リンク・スタート」語音 + 潛入音效（使用者提供的原版音檔），動畫跟著聲音的時間點走
       await playLogin({ startAudio: () => audio.clip(SFX.linkStart, 1) });
+      await autoDone;
       stopRehearsal();
       stage.setRenderEvery(1);
       app.diving = false;
@@ -124,11 +129,35 @@ async function boot() {
     onSettings: s => applySettings(s),
   }, { leaderImages });
 
+  async function measureAndPickQuality() {
+    stage.startBenchmark({ skipMs: 800 });
+    await sleep(3300);
+    const result = stage.stopBenchmark();
+    const tier = pickTier(result);
+    app.bench = { ...result, tier };
+    if (!tier || settings.quality !== 'auto') return;
+    app.autoTier = tier;
+    await applyTier(tier);
+  }
+
+  /** 套用自動模式選出來的等級。換成輕量版時先暫停 3D、在背景重新編譯好著色器再繼續畫，才不會卡。 */
+  async function applyTier(tier) {
+    const { quality, perfLevel } = tierSettings(tier);
+    if (stage.quality !== quality) {
+      stage.setRunning(false);
+      stage.setQuality(quality);
+      await stage.recompile();
+      stage.setRunning(true);
+    }
+    if (quality === 'high') stage.setPerfLevel(perfLevel);
+  }
+
   function applySettings(s) {
     settings = s;
     saveSettings(storage, s);
     audio.setSettings(s);
-    if (stage.quality !== s.quality) stage.setQuality(s.quality);
+    if (s.quality === 'auto') applyTier(app.autoTier || 'full');
+    else if (stage.quality !== s.quality) stage.setQuality(s.quality);
   }
 
   function hudState() {
@@ -336,5 +365,7 @@ async function boot() {
     get settings() { return settings; },
     /** 驗證用：替目前輪到的人類下一手（等同點擊那一格）。 */
     play: cell => (canPlay() ? humanMove(cell) : Promise.resolve('blocked')),
+    /** 驗證用：直接套用某個自動畫質等級（'full' | 'reduced' | 'lite'）。 */
+    applyTier,
   };
 }

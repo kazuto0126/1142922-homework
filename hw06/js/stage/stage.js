@@ -260,6 +260,7 @@ export function createStage(canvas, { quality = 'high' } = {}) {
     mood.winner = winner || null;
   }
   const frame = () => {
+    const fStart = performance.now();
     const rawDt = clock.getDelta();
     trackPerf(rawDt);
     // 偶爾一幀特別久（例如切分頁）時不要讓粒子一口氣跳一大段，畫面比較順
@@ -334,6 +335,12 @@ export function createStage(canvas, { quality = 'high' } = {}) {
         if (frameNo % 2 === 0) mirror.render(scene, camera);
         composer.render();
       } else renderer.render(scene, camera);
+      // 效能測試中：等顯示卡真的畫完（讀一個像素會強迫同步），量這一幀從更新到畫完總共花多久
+      if (bench) {
+        const gl = renderer.getContext();
+        gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, benchPx);
+        if (fStart >= bench.from) bench.samples.push(performance.now() - fStart);
+      }
     }
     if (shook) camera.position.sub(shakeOff);
   };
@@ -770,6 +777,44 @@ export function createStage(canvas, { quality = 'high' } = {}) {
 
   let running = true;
   /** 暫停 / 恢復 3D 繪製（封面完全蓋住棋盤時不用畫，省下主執行緒給封面動畫）。 */
+  // ── 效能測試：開頭登入動畫蓋住畫面時，量背後完整特效（九招預演）每一幀要花多久 ──
+  let bench = null;
+  const benchPx = new Uint8Array(4);
+  /** 開始量。skipMs：頭幾百毫秒不算（第一次繪製、編譯的卡頓不代表平常的速度）。 */
+  function startBenchmark({ skipMs = 800 } = {}) {
+    bench = { from: performance.now() + skipMs, samples: [] };
+  }
+  /** 結束並回傳 { median, p75, n }（毫秒）；樣本太少回傳 null。 */
+  function stopBenchmark() {
+    const b = bench;
+    bench = null;
+    if (!b || b.samples.length < 12) return null; // 樣本太少（分頁在背景、瀏覽器限速）就不下判斷，交給執行中的自動調整
+    const s = b.samples.sort((x, y) => x - y);
+    const at = q => +s[Math.min(s.length - 1, Math.floor(s.length * q))].toFixed(1);
+    return { median: at(0.5), p75: at(0.75), n: s.length };
+  }
+  /** 直接指定自動畫質的等級（0 = 最高解析度）。 */
+  function setPerfLevel(n) {
+    perf.level = Math.max(0, Math.min(PERF_LEVELS.length - 1, n));
+    perf.samples = []; perf.since = performance.now() + 1500; perf.badWindows = 0; perf.goodWindows = 0;
+    applyPerf();
+  }
+  /** 換畫質之後，把整個場景（含預熱樣本）用新設定在背景重新編譯（不卡主執行緒）。 */
+  async function recompile() {
+    keepAlive.visible = true;
+    try {
+      const prev = renderer.getRenderTarget();
+      renderer.setRenderTarget(useComposer ? composer.readBuffer : null);
+      const p = renderer.compileAsync(scene, camera);
+      renderer.setRenderTarget(prev);
+      await p;
+    } catch (e) {
+      console.warn('recompile', e);
+    } finally {
+      keepAlive.visible = false;
+    }
+  }
+
   function setRunning(on) {
     if (running === !!on) return;
     running = !!on;
@@ -822,7 +867,7 @@ export function createStage(canvas, { quality = 'high' } = {}) {
     scene, camera, renderer, controls, fxLayer,
     cellCenter: i => cells[i].center.clone(),
     pickCell, setHover, setWorldImage, placePiece, placeStandee, clearBoard, takeCell, cellsOf, resetEnvironment, cancelFx, onCancelFx,
-    onFrame, tween, flyTo, borrowLight, warmup, warmDraw, setRunning, setRenderEvery, introSweep, cameraPath, mirror, composer, bloom, setSkyMood,
+    onFrame, tween, flyTo, borrowLight, warmup, warmDraw, setRunning, setRenderEvery, startBenchmark, stopBenchmark, setPerfLevel, recompile, introSweep, cameraPath, mirror, composer, bloom, setSkyMood,
     get perf() { return { level: perf.level, fps: perf.fps, pixelRatio: renderer.getPixelRatio(), mirror: mirror.enabled }; },
     /** 開發用：停掉自動更新，改成手動推進（瀏覽器暫停動畫時截圖用）。 */
     manualTick(on) { renderer.setAnimationLoop(on ? null : frame); return frame; }, orbitLine, restoreView, snapBack, resetView, setQuality, shake, impact,
